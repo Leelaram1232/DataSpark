@@ -215,6 +215,7 @@ export function MapDesigner() {
   const queryClient = useQueryClient();
 
   const [dbTypeTrees, setDbTypeTrees] = useState<any[]>([]);
+  const [dbSpecs, setDbSpecs] = useState<any[]>([]);
   
   const loadTypeTrees = () => {
     if (!project) return;
@@ -226,9 +227,37 @@ export function MapDesigner() {
       .catch(() => {});
   };
 
+  const loadSpecs = () => {
+    if (!project) return;
+    fetch(`${EDI_API_BASE}/specifications/${project.id}`, {
+      headers: getAuthHeaders()
+    })
+      .then((res) => res.json())
+      .then((data) => setDbSpecs(data || []))
+      .catch(() => {});
+  };
+
   useEffect(() => {
     loadTypeTrees();
+    loadSpecs();
   }, [project?.id]);
+
+  useEffect(() => {
+    if (dbSpecs.length > 0 && specFile === "X12_850_Inbound_Spec.pdf") {
+      setSpecFile(dbSpecs[0].name);
+    }
+  }, [dbSpecs]);
+
+  useEffect(() => {
+    if (dbTypeTrees.length > 0 && inputTypeTree === "X12_850_Retail_PO") {
+      setInputTypeTree(dbTypeTrees[0].name);
+    }
+    if (dbTypeTrees.length > 1 && outputTypeTree === "SAP_ORDERS05_IDoc") {
+      setOutputTypeTree(dbTypeTrees[1].name);
+    } else if (dbTypeTrees.length > 0 && outputTypeTree === "SAP_ORDERS05_IDoc") {
+      setOutputTypeTree(dbTypeTrees[0].name);
+    }
+  }, [dbTypeTrees]);
 
   // ── Canvas Viewport ──────────────────────────────────────────────────
   const [zoom, setZoom] = useState(1);
@@ -329,6 +358,7 @@ export function MapDesigner() {
 
       if (response.ok) {
         loadTypeTrees();
+        loadSpecs();
         queryClient.invalidateQueries({ queryKey: ["projects", project.id, "files"] });
       }
     } catch (err) {
@@ -478,19 +508,27 @@ export function MapDesigner() {
         clearInterval(interval);
         setAiIsThinking(false);
 
-        // Determine input fields list (use uploaded fields if parsed, else fallback)
-        const parsedInputs = uploadedInputTreeFields && uploadedInputTreeFields.length > 0
-          ? uploadedInputTreeFields
+        const getLeafNames = (item: any): string[] => {
+          if (!item.children || item.children.length === 0) {
+            return [item.name];
+          }
+          return item.children.flatMap(getLeafNames);
+        };
+
+        const inputTreeObj = dbTypeTrees.find((t) => t.name === inputTypeTree || t.id === inputTypeTree);
+        const outputTreeObj = dbTypeTrees.find((t) => t.name === outputTypeTree || t.id === outputTypeTree);
+
+        const parsedInputs = inputTreeObj
+          ? inputTreeObj.hierarchy.flatMap(getLeafNames)
           : inputTypeTree.includes("850")
             ? ["ISA_06_Sender", "BEG_03_PO_Num", "DTM_02_Date", "PO1_01_Line", "PO1_02_Qty", "PO1_04_Price"]
-            : ["ISA_06", "BEG_03", "DTM_02", "Field_1", "Field_2"];
+            : ["Field_1", "Field_2"];
 
-        // Determine output fields list
-        const parsedOutputs = uploadedOutputTreeFields && uploadedOutputTreeFields.length > 0
-          ? uploadedOutputTreeFields
+        const parsedOutputs = outputTreeObj
+          ? outputTreeObj.hierarchy.flatMap(getLeafNames)
           : outputTypeTree.includes("ORDERS05")
             ? ["MESTYP", "BELNR", "DATUM", "POSEX", "MENGE", "NETWR"]
-            : ["MESTYP", "BELNR", "DATUM", "Output_1", "Output_2"];
+            : ["Output_1", "Output_2"];
 
         const newNodes: NodeItem[] = [
           {
@@ -537,17 +575,17 @@ export function MapDesigner() {
 
         // Fallback connections if spec didn't declare rules or wasn't uploaded
         if (newConnections.length === 0) {
-          const firstOutput = parsedInputs.find((o) => o.includes("PO_Num") || o.includes("03")) || parsedInputs[0];
-          const secondOutput = parsedInputs.find((o) => o.includes("Date") || o.includes("02")) || parsedInputs[1];
-          const thirdOutput = parsedInputs.find((o) => o.includes("Line") || o.includes("01")) || parsedInputs[2];
-          const qtyField = parsedInputs.find((o) => o.includes("Qty") || o.includes("02")) || parsedInputs[3];
-          const priceField = parsedInputs.find((o) => o.includes("Price") || o.includes("04")) || parsedInputs[4];
+          const firstOutput = parsedInputs.find((o: string) => o.includes("PO_Num") || o.includes("03")) || parsedInputs[0];
+          const secondOutput = parsedInputs.find((o: string) => o.includes("Date") || o.includes("02")) || parsedInputs[1];
+          const thirdOutput = parsedInputs.find((o: string) => o.includes("Line") || o.includes("01")) || parsedInputs[2];
+          const qtyField = parsedInputs.find((o: string) => o.includes("Qty") || o.includes("02")) || parsedInputs[3];
+          const priceField = parsedInputs.find((o: string) => o.includes("Price") || o.includes("04")) || parsedInputs[4];
 
-          const firstInput = parsedOutputs.find((i) => i.includes("BELNR") || i.includes("03")) || parsedOutputs[0];
-          const secondInput = parsedOutputs.find((i) => i.includes("DATUM") || i.includes("02")) || parsedOutputs[1];
-          const thirdInput = parsedOutputs.find((i) => i.includes("POSEX") || i.includes("01")) || parsedOutputs[2];
-          const mengeInput = parsedOutputs.find((i) => i.includes("MENGE") || i.includes("02")) || parsedOutputs[3];
-          const netwrInput = parsedOutputs.find((i) => i.includes("NETWR") || i.includes("04")) || parsedOutputs[4];
+          const firstInput = parsedOutputs.find((i: string) => i.includes("BELNR") || i.includes("03")) || parsedOutputs[0];
+          const secondInput = parsedOutputs.find((i: string) => i.includes("DATUM") || i.includes("02")) || parsedOutputs[1];
+          const thirdInput = parsedOutputs.find((i: string) => i.includes("POSEX") || i.includes("01")) || parsedOutputs[2];
+          const mengeInput = parsedOutputs.find((i: string) => i.includes("MENGE") || i.includes("02")) || parsedOutputs[3];
+          const netwrInput = parsedOutputs.find((i: string) => i.includes("NETWR") || i.includes("04")) || parsedOutputs[4];
 
           newConnections = [
             { fromNode: "src-gen", fromPort: firstOutput, toNode: "dest-gen", toPort: firstInput },
@@ -1549,9 +1587,20 @@ The source segments have been linked dynamically to the target segments using th
                         onChange={(e) => setSpecFile(e.target.value)}
                         style={{ flex: 1, padding: "8px", background: "#07070a", border: "1px solid #1e1e2e", borderRadius: "6px", color: "#ececf1", fontSize: "11px" }}
                       >
-                        <option value="X12_850_Inbound_Spec.pdf">X12_850_Inbound_Spec.pdf</option>
-                        <option value="SAP_ORDERS05_Outbound_Spec.xlsx">SAP_ORDERS05_Outbound_Spec.xlsx</option>
-                        <option value="Custom_Partner_Format_Spec.json">Custom_Partner_Format_Spec.json</option>
+                        {dbSpecs.length === 0 ? (
+                          <>
+                            <option value="X12_850_Inbound_Spec.pdf">X12_850_Inbound_Spec.pdf (Default)</option>
+                            <option value="SAP_ORDERS05_Outbound_Spec.xlsx">SAP_ORDERS05_Outbound_Spec.xlsx (Default)</option>
+                          </>
+                        ) : (
+                          <>
+                            {dbSpecs.map((s) => (
+                              <option key={s.id} value={s.name}>{s.name}</option>
+                            ))}
+                            <option value="X12_850_Inbound_Spec.pdf">X12_850_Inbound_Spec.pdf (Default)</option>
+                            <option value="SAP_ORDERS05_Outbound_Spec.xlsx">SAP_ORDERS05_Outbound_Spec.xlsx (Default)</option>
+                          </>
+                        )}
                       </select>
                       <label style={{
                         padding: "6px 10px", background: "#1c1c28", border: "1px solid #27273a",
@@ -1574,12 +1623,26 @@ The source segments have been linked dynamically to the target segments using th
                       INPUT TYPE TREE (.mtt/.txt/.json)
                     </label>
                     <div style={{ display: "flex", gap: "6px" }}>
-                      <input
+                      <select
                         value={inputTypeTree}
                         onChange={(e) => setInputTypeTree(e.target.value)}
-                        placeholder="e.g. X12_850_Retail_PO"
-                        style={{ flex: 1, padding: "8px", background: "#07070a", border: "1px solid #1e1e2e", borderRadius: "6px", color: "#ececf1", fontSize: "11px", fontFamily: "var(--font-mono)" }}
-                      />
+                        style={{ flex: 1, padding: "8px", background: "#07070a", border: "1px solid #1e1e2e", borderRadius: "6px", color: "#ececf1", fontSize: "11px" }}
+                      >
+                        {dbTypeTrees.length === 0 ? (
+                          <>
+                            <option value="X12_850_Retail_PO">X12_850_Retail_PO (Default)</option>
+                            <option value="SAP_ORDERS05_IDoc">SAP_ORDERS05_IDoc (Default)</option>
+                          </>
+                        ) : (
+                          <>
+                            {dbTypeTrees.map((t) => (
+                              <option key={t.id} value={t.name}>{t.name}</option>
+                            ))}
+                            <option value="X12_850_Retail_PO">X12_850_Retail_PO (Default)</option>
+                            <option value="SAP_ORDERS05_IDoc">SAP_ORDERS05_IDoc (Default)</option>
+                          </>
+                        )}
+                      </select>
                       <label style={{
                         padding: "6px 10px", background: "#1c1c28", border: "1px solid #27273a",
                         borderRadius: "6px", color: "#ececf1", fontSize: "11px", cursor: "pointer",
@@ -1601,12 +1664,26 @@ The source segments have been linked dynamically to the target segments using th
                       OUTPUT TYPE TREE (.mtt/.txt/.json)
                     </label>
                     <div style={{ display: "flex", gap: "6px" }}>
-                      <input
+                      <select
                         value={outputTypeTree}
                         onChange={(e) => setOutputTypeTree(e.target.value)}
-                        placeholder="e.g. SAP_ORDERS05_IDoc"
-                        style={{ flex: 1, padding: "8px", background: "#07070a", border: "1px solid #1e1e2e", borderRadius: "6px", color: "#ececf1", fontSize: "11px", fontFamily: "var(--font-mono)" }}
-                      />
+                        style={{ flex: 1, padding: "8px", background: "#07070a", border: "1px solid #1e1e2e", borderRadius: "6px", color: "#ececf1", fontSize: "11px" }}
+                      >
+                        {dbTypeTrees.length === 0 ? (
+                          <>
+                            <option value="SAP_ORDERS05_IDoc">SAP_ORDERS05_IDoc (Default)</option>
+                            <option value="X12_850_Retail_PO">X12_850_Retail_PO (Default)</option>
+                          </>
+                        ) : (
+                          <>
+                            {dbTypeTrees.map((t) => (
+                              <option key={t.id} value={t.name}>{t.name}</option>
+                            ))}
+                            <option value="SAP_ORDERS05_IDoc">SAP_ORDERS05_IDoc (Default)</option>
+                            <option value="X12_850_Retail_PO">X12_850_Retail_PO (Default)</option>
+                          </>
+                        )}
+                      </select>
                       <label style={{
                         padding: "6px 10px", background: "#1c1c28", border: "1px solid #27273a",
                         borderRadius: "6px", color: "#ececf1", fontSize: "11px", cursor: "pointer",

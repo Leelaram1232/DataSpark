@@ -54,10 +54,11 @@ def create_application() -> FastAPI:
         allow_headers=["*"],
     )
     app.add_middleware(GZipMiddleware, minimum_size=1000)
-
-    # ── Request Timing Middleware ──────────────────────────────────────────────
+    # ── Request Timing & Prefix Middleware ──────────────────────────────────────
     @app.middleware("http")
     async def add_process_time_header(request: Request, call_next):
+        if request.scope["path"].startswith("/api/backend"):
+            request.scope["path"] = request.scope["path"].replace("/api/backend", "", 1)
         start = time.perf_counter()
         response = await call_next(request)
         duration_ms = (time.perf_counter() - start) * 1000

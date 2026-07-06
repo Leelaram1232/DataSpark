@@ -141,39 +141,6 @@ const FUNCTION_TEMPLATES: FunctionTemplate[] = [
   },
 ];
 
-const SAMPLE_TYPE_TREE_GROUPS = [
-  {
-    name: "Interchange Control Envelope",
-    children: [
-      { name: "ISA - Interchange Control Header", type: "segment", fields: ["ISA01 - Auth Info Qual", "ISA02 - Auth Info", "ISA03 - Security Qual", "ISA04 - Security Info", "ISA05 - Sender ID Qual", "ISA06 - Sender ID", "ISA07 - Receiver ID Qual", "ISA08 - Receiver ID", "ISA09 - Date", "ISA10 - Time", "ISA11 - Control Standards", "ISA12 - Control Version", "ISA13 - Control Number", "ISA14 - Acknowledgment Requested", "ISA15 - Test Indicator", "ISA16 - Component Element Separator"] },
-      { name: "IEA - Interchange Control Trailer", type: "segment", fields: ["IEA01 - Number of Groups", "IEA02 - Control Number"] }
-    ]
-  },
-  {
-    name: "Functional Group Envelope",
-    children: [
-      { name: "GS - Functional Group Header", type: "segment", fields: ["GS01 - Functional ID", "GS02 - Sender Code", "GS03 - Receiver Code", "GS04 - Date", "GS05 - Time", "GS06 - Group Control Number", "GS07 - Agency Code", "GS08 - Industry Code"] },
-      { name: "GE - Functional Group Trailer", type: "segment", fields: ["GE01 - Number of Transaction Sets", "GE02 - Group Control Number"] }
-    ]
-  },
-  {
-    name: "Transaction Set Envelope (850 PO)",
-    children: [
-      { name: "ST - Transaction Set Header", type: "segment", fields: ["ST01 - Transaction ID", "ST02 - Control Number"] },
-      { name: "BEG - Beginning Segment for PO", type: "segment", fields: ["BEG01 - Purpose", "BEG02 - PO Type", "BEG03 - PO Number", "BEG04 - Release Number", "BEG05 - Date"] },
-      { name: "REF - Reference Information", type: "segment", fields: ["REF01 - Reference Qual", "REF02 - Reference Ident"] },
-      { name: "DTM - Date/Time Reference", type: "segment", fields: ["DTM01 - Date/Time Qual", "DTM02 - Date", "DTM03 - Time"] }
-    ]
-  },
-  {
-    name: "Item Loop Detail (PO1 Loop)",
-    children: [
-      { name: "PO1 - Baseline Item Data", type: "segment", fields: ["PO101 - Line ID", "PO102 - Quantity", "PO103 - UOM Code", "PO104 - Unit Price", "PO105 - Basis Price"] },
-      { name: "PID - Product/Item Description", type: "segment", fields: ["PID01 - Item Desc Type", "PID02 - Product Characteristic", "PID03 - Association Code", "PID04 - Product Description Code", "PID05 - Description"] }
-    ]
-  }
-];
-
 /* ═══════════════════════════════════════════════════════════════════════
    CONSTANTS
    ═══════════════════════════════════════════════════════════════════════ */
@@ -243,18 +210,18 @@ export function MapDesigner() {
   }, [project?.id]);
 
   useEffect(() => {
-    if (dbSpecs.length > 0 && specFile === "X12_850_Inbound_Spec.pdf") {
+    if (dbSpecs.length > 0 && specFile === "") {
       setSpecFile(dbSpecs[0].name);
     }
   }, [dbSpecs]);
 
   useEffect(() => {
-    if (dbTypeTrees.length > 0 && inputTypeTree === "X12_850_Retail_PO") {
+    if (dbTypeTrees.length > 0 && inputTypeTree === "") {
       setInputTypeTree(dbTypeTrees[0].name);
     }
-    if (dbTypeTrees.length > 1 && outputTypeTree === "SAP_ORDERS05_IDoc") {
+    if (dbTypeTrees.length > 1 && outputTypeTree === "") {
       setOutputTypeTree(dbTypeTrees[1].name);
-    } else if (dbTypeTrees.length > 0 && outputTypeTree === "SAP_ORDERS05_IDoc") {
+    } else if (dbTypeTrees.length > 0 && outputTypeTree === "") {
       setOutputTypeTree(dbTypeTrees[0].name);
     }
   }, [dbTypeTrees]);
@@ -268,10 +235,10 @@ export function MapDesigner() {
 
   // ── Setup Wizard Dialog State ────────────────────────────────────────
   const [showWizard, setShowWizard] = useState(true);
-  const [specFile, setSpecFile] = useState("X12_850_Inbound_Spec.pdf");
-  const [inputTypeTree, setInputTypeTree] = useState("X12_850_Retail_PO");
-  const [outputTypeTree, setOutputTypeTree] = useState("SAP_ORDERS05_IDoc");
-  const [inputFile, setInputFile] = useState("partner_po_850.edi");
+  const [specFile, setSpecFile] = useState("");
+  const [inputTypeTree, setInputTypeTree] = useState("");
+  const [outputTypeTree, setOutputTypeTree] = useState("");
+  const [inputFile, setInputFile] = useState("");
 
   // Raw uploaded files content
   const [uploadedSpecContent, setUploadedSpecContent] = useState<string | null>(null);
@@ -481,6 +448,14 @@ export function MapDesigner() {
      ═══════════════════════════════════════════════════════════════════════ */
 
   const handleGenerateMapFromWizard = () => {
+    const inputTreeObj = dbTypeTrees.find((t) => t.name === inputTypeTree || t.id === inputTypeTree);
+    const outputTreeObj = dbTypeTrees.find((t) => t.name === outputTypeTree || t.id === outputTypeTree);
+
+    if (!inputTreeObj || !outputTreeObj) {
+      alert("Please upload and select both an Input and Output Type Tree from the dropdown lists first.");
+      return;
+    }
+
     setShowWizard(false);
     setShowCompanion(true);
     setAiIsThinking(true);
@@ -515,20 +490,8 @@ export function MapDesigner() {
           return item.children.flatMap(getLeafNames);
         };
 
-        const inputTreeObj = dbTypeTrees.find((t) => t.name === inputTypeTree || t.id === inputTypeTree);
-        const outputTreeObj = dbTypeTrees.find((t) => t.name === outputTypeTree || t.id === outputTypeTree);
-
-        const parsedInputs = inputTreeObj
-          ? inputTreeObj.hierarchy.flatMap(getLeafNames)
-          : inputTypeTree.includes("850")
-            ? ["ISA_06_Sender", "BEG_03_PO_Num", "DTM_02_Date", "PO1_01_Line", "PO1_02_Qty", "PO1_04_Price"]
-            : ["Field_1", "Field_2"];
-
-        const parsedOutputs = outputTreeObj
-          ? outputTreeObj.hierarchy.flatMap(getLeafNames)
-          : outputTypeTree.includes("ORDERS05")
-            ? ["MESTYP", "BELNR", "DATUM", "POSEX", "MENGE", "NETWR"]
-            : ["Output_1", "Output_2"];
+        const parsedInputs = inputTreeObj.hierarchy.flatMap(getLeafNames);
+        const parsedOutputs = outputTreeObj.hierarchy.flatMap(getLeafNames);
 
         const newNodes: NodeItem[] = [
           {
@@ -1588,18 +1551,11 @@ The source segments have been linked dynamically to the target segments using th
                         style={{ flex: 1, padding: "8px", background: "#07070a", border: "1px solid #1e1e2e", borderRadius: "6px", color: "#ececf1", fontSize: "11px" }}
                       >
                         {dbSpecs.length === 0 ? (
-                          <>
-                            <option value="X12_850_Inbound_Spec.pdf">X12_850_Inbound_Spec.pdf (Default)</option>
-                            <option value="SAP_ORDERS05_Outbound_Spec.xlsx">SAP_ORDERS05_Outbound_Spec.xlsx (Default)</option>
-                          </>
+                          <option value="">-- No specifications uploaded yet --</option>
                         ) : (
-                          <>
-                            {dbSpecs.map((s) => (
-                              <option key={s.id} value={s.name}>{s.name}</option>
-                            ))}
-                            <option value="X12_850_Inbound_Spec.pdf">X12_850_Inbound_Spec.pdf (Default)</option>
-                            <option value="SAP_ORDERS05_Outbound_Spec.xlsx">SAP_ORDERS05_Outbound_Spec.xlsx (Default)</option>
-                          </>
+                          dbSpecs.map((s) => (
+                            <option key={s.id} value={s.name}>{s.name}</option>
+                          ))
                         )}
                       </select>
                       <label style={{
@@ -1629,18 +1585,11 @@ The source segments have been linked dynamically to the target segments using th
                         style={{ flex: 1, padding: "8px", background: "#07070a", border: "1px solid #1e1e2e", borderRadius: "6px", color: "#ececf1", fontSize: "11px" }}
                       >
                         {dbTypeTrees.length === 0 ? (
-                          <>
-                            <option value="X12_850_Retail_PO">X12_850_Retail_PO (Default)</option>
-                            <option value="SAP_ORDERS05_IDoc">SAP_ORDERS05_IDoc (Default)</option>
-                          </>
+                          <option value="">-- No custom Type Trees uploaded --</option>
                         ) : (
-                          <>
-                            {dbTypeTrees.map((t) => (
-                              <option key={t.id} value={t.name}>{t.name}</option>
-                            ))}
-                            <option value="X12_850_Retail_PO">X12_850_Retail_PO (Default)</option>
-                            <option value="SAP_ORDERS05_IDoc">SAP_ORDERS05_IDoc (Default)</option>
-                          </>
+                          dbTypeTrees.map((t) => (
+                            <option key={t.id} value={t.name}>{t.name}</option>
+                          ))
                         )}
                       </select>
                       <label style={{
@@ -1670,18 +1619,11 @@ The source segments have been linked dynamically to the target segments using th
                         style={{ flex: 1, padding: "8px", background: "#07070a", border: "1px solid #1e1e2e", borderRadius: "6px", color: "#ececf1", fontSize: "11px" }}
                       >
                         {dbTypeTrees.length === 0 ? (
-                          <>
-                            <option value="SAP_ORDERS05_IDoc">SAP_ORDERS05_IDoc (Default)</option>
-                            <option value="X12_850_Retail_PO">X12_850_Retail_PO (Default)</option>
-                          </>
+                          <option value="">-- No custom Type Trees uploaded --</option>
                         ) : (
-                          <>
-                            {dbTypeTrees.map((t) => (
-                              <option key={t.id} value={t.name}>{t.name}</option>
-                            ))}
-                            <option value="SAP_ORDERS05_IDoc">SAP_ORDERS05_IDoc (Default)</option>
-                            <option value="X12_850_Retail_PO">X12_850_Retail_PO (Default)</option>
-                          </>
+                          dbTypeTrees.map((t) => (
+                            <option key={t.id} value={t.name}>{t.name}</option>
+                          ))
                         )}
                       </select>
                       <label style={{

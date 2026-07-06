@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+   <xsd:element name="ContainerID" type="xsd:string"/>
+   <xsd:element name="MessageType" type="xsd:string"/>
+   <xsd:element name="Version" type="xsd:string"/>
+   <xsd:element name="TermOfDeliveryPlace" type="xsd:string"/>
+   <xsd:element name="ReceiverID" type="xsd:string"/>
+   <xsd:element name="ArticleID" type="xsd:string"/>
+   <xsd:element name="ShippingMode" type="xsd:string"/>
+   <xsd:element name="DetailLineCounter" type="xsd:string"/>
+   <xsd:element name="Address2" type="xsd:string"/>
+   <xsd:element name="MessageTypeSection">
+      <xsd:complexType>
+         <xsd:sequence>
+            <xsd:element ref="MessageType"/>
+            <xsd:element ref="Version"/>
+            <xsd:element ref="Release"/>
+            <xsd:element ref="MessageOwner"/>
+         </xsd:sequence>
+      </xsd:complexType>
+   </xsd:element>
+   <xsd:element name="StatusCode" type="xsd:string"/>
+   <xsd:element name="ContainerIDBarCode" type="xsd:string"/>
+   <xsd:element name="ArticleIDatSupplier" type="xsd:string"/>
+   <xsd:element name="LineNumber" type="xsd:string"/>
+   <xsd:element name="SupplierID" type="xsd:string"/>
+   <xsd:element name="OrderReferenceID1" type="xsd:string"/>
+   <xsd:element name="PurchaseOrderID" type="xsd:string"/>
+   <xsd:element name="LinePriorityCode" type="xsd:string"/>
+   <xsd:element name="ZipCode" type="xsd:string"/>
+   <xsd:element name="InterchangeSection">
+      <xsd:complexType>
+         <xsd:sequence>
+            <xsd:element ref="Sender"/>
+            <xsd:element ref="Receiver"/>
+            <xsd:element ref="ControlReferences"/>
+         </xsd:sequence>
+      </xsd:complexType>
+   </xsd:element>
+   <xsd:element name="InboundShipmentSection">
+      <xsd:complexType>
+         <xsd:sequence>
+            <xsd:element ref="HeaderSection"/>
+         </xsd:sequence>
+      </xsd:complexType>
+   </xsd:element>
+   <xsd:element name="HeaderSection">
+      <xsd:complexType>
+         <xsd:sequence>
+            <xsd:element ref="StatusCode"/>
+            <xsd:element ref="HeaderPriorityCode"/>
+            <xsd:element ref="OrderReferenceID1"/>
+            <xsd:element ref="OrderReferenceID2" minOccurs="0"/>
+            <xsd:element ref="SupplierID"/>
+            <xsd:element ref="ExternalRelationID" minOccurs="0"/>
+            <xsd:element ref="TermOfDelivery"/>
+            <xsd:element ref="TermOfDeliveryPlace" minOccurs="0"/>
+            <xsd:element ref="InboundProcessType" minOccurs="0"/>
+            <xsd:element ref="ShippingMode" minOccurs="0"/>
+            <xsd:element ref="AddressSection" minOccurs="0"/>
+            <xsd:element ref="DetailSection" maxOccurs="unbounded"/>
+         </xsd:sequence>
+      </xsd:complexType>
+   </xsd:element>
+   <xsd:element name="Name2" type="xsd:string"/>
+   <xsd:element name="MessageOwner" type="xsd:string"/>
+   <xsd:element name="Message">
+      <xsd:complexType>
+         <xsd:sequence>
+            <xsd:element ref="MessageTypeSection"/>
+            <xsd:element ref="InterchangeSection"/>
+            <xsd:element ref="InboundShipmentSection"/>
+            <xsd:element ref="MessageControlSection"/>
+         </xsd:sequence>
+      </xsd:complexType>
+   </xsd:element>
+   <xsd:element name="Release" type="xsd:string"/>
+   <xsd:element name="ControlReferences">
+      <xsd:complexType>
+         <xsd:sequence>
+            <xsd:element ref="DateOfPreparation"/>
+            <xsd:element ref="TimeOfPreparation"/>
+            <xsd:element ref="InterchangeNumber"/>
+         </xsd:sequence>
+      </xsd:complexType>
+   </xsd:element>
+   <xsd:element name="ArticleType" type="xsd:string"/>
+   <xsd:element name="MessageControlSection">
+      <xsd:complexType>
+         <xsd:sequence>
+            <xsd:element ref="InterchangeNumber"/>
+         </xsd:sequence>
+      </xsd:complexType>
+   </xsd:element>
+   <xsd:element name="QuantityPerUOM" type="xsd:string"/>
+   <xsd:element name="InboundProcessType" type="xsd:string"/>
+   <xsd:element name="SerialNumber" type="xsd:string"/>
+   <xsd:element name="OrderReferenceID2" type="xsd:string"/>
+   <xsd:element name="CountryCode" type="xsd:string"/>
+   <xsd:element name="ExpectedDeliveryDate" type="xsd:string"/>
+   <xsd:element name="Name1" type="xsd:string"/>
+   <xsd:element name="SenderApplicationReference" type="xsd:string"/>
+   <xsd:element name="UnitOfMeasurement" type="xsd:string"/>
+   <xsd:element name="ExternalRelationID" type="xsd:string"/>
+   <xsd:element name="Sender">
+      <xsd:complexType>
+         <xsd:sequence>
+            <xsd:element ref="SenderID"/>
+            <xsd:element ref="SenderApplicationReference"/>
+         </xsd:sequence>
+      </xsd:complexType>
+   </xsd:element>
+   <xsd:element name="Plant" type="xsd:string"/>
+   <xsd:element name="DetailSection">
+      <xsd:complexType>
+         <xsd:sequence>
+            <xsd:element ref="StatusCode"/>
+            <xsd:element ref="LinePriorityCode"/>
+            <xsd:element ref="DetailLineCounter"/>
+            <xsd:element ref="ContainerID" minOccurs="0"/>
+            <xsd:element ref="ContainerIDBarCode" minOccurs="0"/>
+            <xsd:element ref="ContainerIDType" minOccurs="0"/>
+            <xsd:element ref="LineNumber"/>
+            <xsd:element ref="ArticleID"/>
+            <xsd:element ref="ArticleType"/>
+            <xsd:element ref="ArticleIDatSupplier"/>
+            <xsd:element ref="PurchaseOrderID"/>
+            <xsd:element ref="PurchaseOrderLineNumber"/>
+            <xsd:element ref="UnitOfMeasurement"/>
+            <xsd:element ref="QuantityPerUOM"/>
+            <xsd:element ref="ExpectedQuantity"/>
+            <xsd:element ref="SerialNumber" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element ref="ExpectedDeliveryDate"/>
+            <xsd:element ref="SpecialStockType" minOccurs="0"/>
+            <xsd:element ref="SpecialStockNumber" minOccurs="0"/>
+            <xsd:element ref="Plant"/>
+         </xsd:sequence>
+      </xsd:complexType>
+   </xsd:element>
+   <xsd:element name="TermOfDelivery" type="xsd:string"/>
+   <xsd:element name="HeaderPriorityCode" type="xsd:string"/>
+   <xsd:element name="TimeOfPreparation" type="xsd:string"/>
+   <xsd:element name="CityName" type="xsd:string"/>
+   <xsd:element name="ContainerIDType" type="xsd:string"/>
+   <xsd:element name="SenderID" type="xsd:string"/>
+   <xsd:element name="ExpectedQuantity" type="xsd:string"/>
+   <xsd:element name="AddressTag" type="xsd:string"/>
+   <xsd:element name="Address1" type="xsd:string"/>
+   <xsd:element name="SpecialStockType" type="xsd:string"/>
+   <xsd:element name="SpecialStockNumber" type="xsd:string"/>
+   <xsd:element name="AddressSection">
+      <xsd:complexType>
+         <xsd:sequence>
+            <xsd:element ref="AddressTag"/>
+            <xsd:element ref="Name1"/>
+            <xsd:element ref="Name2" minOccurs="0"/>
+            <xsd:element ref="Address1" minOccurs="0"/>
+            <xsd:element ref="Address2" minOccurs="0"/>
+            <xsd:element ref="CityName" minOccurs="0"/>
+            <xsd:element ref="ZipCode" minOccurs="0"/>
+            <xsd:element ref="CountryCode"/>
+         </xsd:sequence>
+      </xsd:complexType>
+   </xsd:element>
+   <xsd:element name="DateOfPreparation" type="xsd:string"/>
+   <xsd:element name="Receiver">
+      <xsd:complexType>
+         <xsd:sequence>
+            <xsd:element ref="ReceiverID"/>
+         </xsd:sequence>
+      </xsd:complexType>
+   </xsd:element>
+   <xsd:element name="PurchaseOrderLineNumber" type="xsd:string"/>
+   <xsd:element name="InterchangeNumber" type="xsd:string"/>
+</xsd:schema>

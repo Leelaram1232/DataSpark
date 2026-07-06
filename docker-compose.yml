@@ -1,0 +1,84 @@
+version: "3.9"
+
+services:
+  # ── FastAPI Backend ────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=development
+      - DEBUG=true
+      - DATABASE_URL=postgresql+asyncpg://dataspark:dataspark_dev@postgres:5432/dataspark
+      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - ./backend/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - dataspark-net
+    restart: unless-stopped
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: dataspark
+      POSTGRES_PASSWORD: dataspark_dev
+      POSTGRES_DB: dataspark
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dataspark -d dataspark"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dataspark-net
+
+  # ── Redis ───────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - dataspark-net
+
+  # ── Next.js Frontend ────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://api:8000/api/v1
+    depends_on:
+      - api
+    networks:
+      - dataspark-net
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  dataspark-net:
+    driver: bridge

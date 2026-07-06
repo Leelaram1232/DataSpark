@@ -1,0 +1,21 @@
+# Tasks — Integration Studio (EDI Studio) Backend & MVP Upgrades
+
+- [x] **Step 1: Supabase Database Schemas**
+  - [x] Write DB migration script to create tables (`type_trees`, `imported_maps`, `specifications`, `ai_conversations`, `training_datasets`, `user_settings`) in Supabase.
+  - [x] Execute DB migration script using the backend Python SQLAlchemy connection.
+- [x] **Step 2: Project Folder Auto-Creation**
+  - [x] Modify `create_project` in `project_service.py` to auto-create standard folder records in database.
+- [x] **Step 3: EDI File Parsers & Routers**
+  - [x] Implement `.mtt` Type Tree parsing and storage in `edi.py` router.
+  - [x] Implement `.mms` Map parsing and metadata extraction in `edi.py` router.
+  - [x] Implement Specification document text/table extractor & rule engine analyzer in `edi.py` router.
+  - [x] Implement AI Model settings & RAG conversation database endpoints.
+- [x] **Step 4: Advanced Map Designer (Frontend)**
+  - [x] Implement the Select Type Dialog (expandable group/field/attribute hierarchy matching tree explorer).
+  - [x] Support Input, Output, Temporary, Database, API, MQ, FTP, AS2 card formats in Monaco or properties sidebar.
+  - [x] Connect properties panel, rule editor, and simulator directly to the database.
+- [x] **Step 5: Full Nav Suite & Project Intelligence (Frontend)**
+  - [x] Add nav rail options in `EDIStudio.tsx`.
+  - [x] Build **Project Intelligence** view (SVG dependency graph of maps/trees, reusable component inventory table, transformation flows, RAG doc cards).
+  - [x] Build **Training Manager** & **Model Dashboard** (validate files, dataset approvals, active AI model configuration, accuracy metrics tables).
+  - [x] Connect **AI Chat** and **Knowledge Base** tabs to the live RAG backend search endpoints.

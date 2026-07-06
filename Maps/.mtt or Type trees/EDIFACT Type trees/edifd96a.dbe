@@ -1,0 +1,39 @@
+
+L199 - COMPONENT 6 may not be distinguishable from COMPONENT 7 that may
+ follow in TYPE 'Message CONEST Inbound Partner Set VD96A EDIFACT EDI' (warning)
+
+L199 - COMPONENT 6 may not be distinguishable from COMPONENT 7 that may
+ follow in TYPE 'Message CONITT Inbound Partner Set VD96A EDIFACT EDI' (warning)
+
+L199 - COMPONENT 6 may not be distinguishable from COMPONENT 7 that may
+ follow in TYPE 'Message CONTEN Inbound Partner Set VD96A EDIFACT EDI' (warning)
+
+L199 - COMPONENT 6 may not be distinguishable from COMPONENT 7 that may
+ follow in TYPE 'Message DELFOR Inbound Partner Set VD96A EDIFACT EDI' (warning)
+
+L199 - COMPONENT 5 may not be distinguishable from COMPONENT 6 that may
+ follow in TYPE 'Message DELJIT Inbound Partner Set VD96A EDIFACT EDI' (warning)
+
+L201 - Different data objects of COMPONENT 9 may not be distinguishable in
+ TYPE 'Group9 INVRPT Inbound Partner Set VD96A EDIFACT EDI' (warning)
+
+L199 - COMPONENT 6 may not be distinguishable from COMPONENT 7 that may
+ follow in TYPE 'Message CONEST Outbound Partner Set VD96A EDIFACT EDI' (warning)
+
+L199 - COMPONENT 6 may not be distinguishable from COMPONENT 7 that may
+ follow in TYPE 'Message CONITT Outbound Partner Set VD96A EDIFACT EDI' (warning)
+
+L199 - COMPONENT 6 may not be distinguishable from COMPONENT 7 that may
+ follow in TYPE 'Message CONTEN Outbound Partner Set VD96A EDIFACT EDI' (warning)
+
+L199 - COMPONENT 6 may not be distinguishable from COMPONENT 7 that may
+ follow in TYPE 'Message DELFOR Outbound Partner Set VD96A EDIFACT EDI' (warning)
+
+L199 - COMPONENT 5 may not be distinguishable from COMPONENT 6 that may
+ follow in TYPE 'Message DELJIT Outbound Partner Set VD96A EDIFACT EDI' (warning)
+
+L201 - Different data objects of COMPONENT 9 may not be distinguishable in
+ TYPE 'Group9 INVRPT Outbound Partner Set VD96A EDIFACT EDI' (warning)
+
+
+   End of Analysis Messages.

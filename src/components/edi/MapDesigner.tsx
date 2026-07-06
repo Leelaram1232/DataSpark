@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useProjectStore } from "@/store/projectStore";
 import {
   Cable,
@@ -196,9 +197,28 @@ const NODE_COLORS: Record<string, { bg: string; headerBg: string; accent: string
   as2: { bg: "#1c1917", headerBg: "#292524", accent: "#a8a29e", border: "#44403c" },
 };
 
+const EDI_API_BASE = typeof window !== "undefined"
+  ? (window.location.origin.includes("vercel.app") ? "/api/backend/api/v1/edi" : "http://localhost:8000/api/v1/edi")
+  : "http://localhost:8000/api/v1/edi";
+
 export function MapDesigner() {
   const { activeProject } = useProjectStore();
   const project = activeProject();
+  const queryClient = useQueryClient();
+
+  const [dbTypeTrees, setDbTypeTrees] = useState<any[]>([]);
+  
+  const loadTypeTrees = () => {
+    if (!project) return;
+    fetch(`${EDI_API_BASE}/type-trees/${project.id}`)
+      .then((res) => res.json())
+      .then((data) => setDbTypeTrees(data || []))
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    loadTypeTrees();
+  }, [project?.id]);
 
   // ── Canvas Viewport ──────────────────────────────────────────────────
   const [zoom, setZoom] = useState(1);
@@ -270,34 +290,39 @@ export function MapDesigner() {
     return conns;
   };
 
-  const handleFileUpload = (
+  const handleFileUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
     type: "spec" | "inputTree" | "outputTree" | "inputData"
   ) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !project) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      if (!content) return;
+    if (type === "spec") {
+      setSpecFile(file.name);
+    } else if (type === "inputTree") {
+      setInputTypeTree(file.name.replace(/\.[^/.]+$/, ""));
+    } else if (type === "outputTree") {
+      setOutputTypeTree(file.name.replace(/\.[^/.]+$/, ""));
+    } else if (type === "inputData") {
+      setInputFile(file.name);
+    }
 
-      if (type === "spec") {
-        setSpecFile(file.name);
-        setUploadedSpecContent(content);
-      } else if (type === "inputTree") {
-        setInputTypeTree(file.name.replace(/\.[^/.]+$/, ""));
-        setUploadedInputTreeFields(parseTreeFields(content));
-      } else if (type === "outputTree") {
-        setOutputTypeTree(file.name.replace(/\.[^/.]+$/, ""));
-        setUploadedOutputTreeFields(parseTreeFields(content));
-      } else if (type === "inputData") {
-        setInputFile(file.name);
-        setUploadedInputFileContent(content);
-        parseInputTestData(content);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await fetch(`${EDI_API_BASE}/import/${project.id}`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (response.ok) {
+        loadTypeTrees();
+        queryClient.invalidateQueries({ queryKey: ["projects", project.id, "files"] });
       }
-    };
-    reader.readAsText(file);
+    } catch (err) {
+      console.error("Failed to import file via designer upload:", err);
+    }
   };
 
   // ── ITX AI Companion Floating Window State ───────────────────────────
@@ -371,7 +396,7 @@ export function MapDesigner() {
     const delayDebounce = setTimeout(() => {
       if (searchQuery.trim().length > 1) {
         setIsSearching(true);
-        fetch(`http://localhost:8000/api/v1/edi/docs?query=${encodeURIComponent(searchQuery)}`)
+        fetch(`${EDI_API_BASE}/docs?query=${encodeURIComponent(searchQuery)}`)
           .then((res) => res.json())
           .then((data) => {
             setDocResults(data);
@@ -388,7 +413,7 @@ export function MapDesigner() {
   // ── Load maps from backend if project changes ────────────────────────
   useEffect(() => {
     if (project) {
-      fetch(`http://localhost:8000/api/v1/edi/maps/${project.id}`)
+      fetch(`${EDI_API_BASE}/maps/${project.id}`)
         .then((res) => res.json())
         .then((data) => {
           if (data && data.length > 0) {
@@ -811,7 +836,7 @@ The source segments have been linked dynamically to the target segments using th
   const handleSaveMap = async () => {
     setSaveStatus("Saving...");
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/edi/maps/${project.id}`, {
+      const response = await fetch(`${EDI_API_BASE}/maps/${project.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1638,130 +1663,188 @@ The source segments have been linked dynamically to the target segments using th
           {/* ════════════════════════════════════════════════════════════
               TYPE SELECTION DIALOG (MTT TREE EXPLORER)
               ════════════════════════════════════════════════════════════ */}
-          {showTypeSelectionDialog && (
-            <div style={{
-              position: "absolute", inset: 0, background: "rgba(0,0,0,0.65)",
-              display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100,
-              backdropFilter: "blur(4px)",
-            }}>
-              <div style={{
-                width: "480px", height: "540px", background: "#0c0c14", border: "1px solid #222235",
-                borderRadius: "12px", boxShadow: "0 25px 60px rgba(0,0,0,0.7)",
-                display: "flex", flexDirection: "column", overflow: "hidden"
-              }}>
-                {/* Header */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderBottom: "1px solid #1a1a2e" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <GitBranch size={16} color="#10b981" />
-                    <span style={{ fontSize: "13px", fontWeight: 700, color: "#ececf1" }}>
-                      Select Type Element Dialog
-                    </span>
-                  </div>
+          {/* ════════════════════════════════════════════════════════════
+              TYPE SELECTION DIALOG (MTT TREE EXPLORER)
+              ════════════════════════════════════════════════════════════ */}
+          {showTypeSelectionDialog && (() => {
+            const getLeafNames = (item: any): string[] => {
+              if (!item.children || item.children.length === 0) {
+                return [item.name];
+              }
+              return item.children.flatMap(getLeafNames);
+            };
+
+            const renderSelectorNode = (node: any, depth: number = 0) => {
+              const isParent = node.children && node.children.length > 0;
+              const isExpanded = expandedSelectorNodes[node.name] !== false;
+              
+              if (!isParent) {
+                if (typeSearchQuery && !node.name.toLowerCase().includes(typeSearchQuery.toLowerCase())) {
+                  return null;
+                }
+                return (
                   <button
-                    onClick={() => setShowTypeSelectionDialog(false)}
-                    style={{ background: "transparent", border: "none", color: "#6b7280", cursor: "pointer" }}
+                    key={node.name}
+                    onClick={() => {
+                      if (activeSelectingNodeId && activeSelectingPort) {
+                        if (activeSelectingPort === "__WHOLE_SCHEMA__") {
+                          setNodes((prev) =>
+                            prev.map((n) => {
+                              if (n.id !== activeSelectingNodeId) return n;
+                              const listKey = activeSelectingPortSide === "input" ? "inputs" : "outputs";
+                              return { ...n, [listKey]: [node.name] };
+                            })
+                          );
+                        } else {
+                          setNodes((prev) =>
+                            prev.map((n) => {
+                              if (n.id !== activeSelectingNodeId) return n;
+                              const listKey = activeSelectingPortSide === "input" ? "inputs" : "outputs";
+                              const currentList = n[listKey];
+                              const updatedList = currentList.map((p) => (p === activeSelectingPort ? node.name : p));
+                              return { ...n, [listKey]: updatedList };
+                            })
+                          );
+                        }
+                      }
+                      setShowTypeSelectionDialog(false);
+                    }}
+                    style={{
+                      padding: "2px 6px", background: "#1a1a2e", border: "1px solid #27273f",
+                      borderRadius: "4px", color: "#ececf1", fontSize: "9px", cursor: "pointer",
+                      margin: "2px", fontFamily: "var(--font-mono)"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "#10b981";
+                      e.currentTarget.style.color = "#000";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "#1a1a2e";
+                      e.currentTarget.style.color = "#ececf1";
+                    }}
                   >
-                    <X size={16} />
+                    {node.name}
                   </button>
-                </div>
-
-                {/* Filter Search Input */}
-                <div style={{ padding: "12px 16px", borderBottom: "1px solid #141424" }}>
-                  <div style={{
-                    display: "flex", alignItems: "center", gap: "8px", background: "#06060a",
-                    border: "1px solid #1e1e2e", borderRadius: "6px", padding: "6px 10px"
-                  }}>
-                    <Search size={12} color="#6b7280" />
-                    <input
-                      type="text"
-                      placeholder="Filter segments, fields, groups or attributes..."
-                      value={typeSearchQuery}
-                      onChange={(e) => setTypeSearchQuery(e.target.value)}
-                      style={{ background: "transparent", border: "none", outline: "none", color: "#ececf1", fontSize: "11px", width: "100%" }}
-                    />
+                );
+              }
+              
+              const matchesSearch = node.name.toLowerCase().includes(typeSearchQuery.toLowerCase());
+              const childViews = node.children.map((child: any) => renderSelectorNode(child, depth + 1)).filter(Boolean);
+              
+              if (typeSearchQuery && !matchesSearch && childViews.length === 0) {
+                return null;
+              }
+              
+              return (
+                <div key={node.name} style={{ display: "flex", flexDirection: "column", gap: "4px", paddingLeft: `${depth > 0 ? 12 : 0}px`, marginTop: "4px", width: "100%" }}>
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: 700 }}
+                  >
+                    <div
+                      onClick={() => setExpandedSelectorNodes((prev) => ({ ...prev, [node.name]: !isExpanded }))}
+                      style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", color: depth === 0 ? "#10b981" : "#a855f7" }}
+                    >
+                      {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                      <span>{node.name}</span>
+                    </div>
+                    {activeSelectingPort === "__WHOLE_SCHEMA__" && (
+                      <button
+                        onClick={() => {
+                          const leaves = getLeafNames(node);
+                          if (activeSelectingNodeId) {
+                            setNodes((prev) =>
+                              prev.map((n) => {
+                                if (n.id !== activeSelectingNodeId) return n;
+                                const listKey = activeSelectingPortSide === "input" ? "inputs" : "outputs";
+                                return { ...n, [listKey]: leaves };
+                              })
+                            );
+                          }
+                          setShowTypeSelectionDialog(false);
+                        }}
+                        style={{
+                          padding: "1px 5px", background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.3)",
+                          borderRadius: "3px", color: "#fbbf24", fontSize: "9px", cursor: "pointer", fontWeight: 800
+                        }}
+                      >
+                        Select Group
+                      </button>
+                    )}
                   </div>
+                  {isExpanded && (
+                    <div style={{ borderLeft: "1px dashed #1e1e2e", paddingLeft: "8px", display: "flex", flexDirection: "row", flexWrap: "wrap", gap: "2px", marginTop: "2px" }}>
+                      {childViews}
+                    </div>
+                  )}
                 </div>
+              );
+            };
 
-                {/* Hierarchical Tree Explorer */}
-                <div style={{ flex: 1, overflowY: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
-                  {SAMPLE_TYPE_TREE_GROUPS.map((group) => {
-                    const groupMatches = group.name.toLowerCase().includes(typeSearchQuery.toLowerCase());
-                    const filteredChildren = group.children.filter(
-                      (child) =>
-                        child.name.toLowerCase().includes(typeSearchQuery.toLowerCase()) ||
-                        child.fields.some((f) => f.toLowerCase().includes(typeSearchQuery.toLowerCase()))
-                    );
+            return (
+              <div style={{
+                position: "absolute", inset: 0, background: "rgba(0,0,0,0.65)",
+                display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100,
+                backdropFilter: "blur(4px)",
+              }}>
+                <div style={{
+                  width: "480px", height: "540px", background: "#0c0c14", border: "1px solid #222235",
+                  borderRadius: "12px", boxShadow: "0 25px 60px rgba(0,0,0,0.7)",
+                  display: "flex", flexDirection: "column", overflow: "hidden"
+                }}>
+                  {/* Header */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderBottom: "1px solid #1a1a2e" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <GitBranch size={16} color="#10b981" />
+                      <span style={{ fontSize: "13px", fontWeight: 700, color: "#ececf1" }}>
+                        Select Type Element Dialog
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setShowTypeSelectionDialog(false)}
+                      style={{ background: "transparent", border: "none", color: "#6b7280", cursor: "pointer" }}
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
 
-                    if (!groupMatches && filteredChildren.length === 0) return null;
+                  {/* Filter Search Input */}
+                  <div style={{ padding: "12px 16px", borderBottom: "1px solid #141424" }}>
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: "8px", background: "#06060a",
+                      border: "1px solid #1e1e2e", borderRadius: "6px", padding: "6px 10px"
+                    }}>
+                      <Search size={12} color="#6b7280" />
+                      <input
+                        type="text"
+                        placeholder="Filter segments, fields, groups or attributes..."
+                        value={typeSearchQuery}
+                        onChange={(e) => setTypeSearchQuery(e.target.value)}
+                        style={{ background: "transparent", border: "none", outline: "none", color: "#ececf1", fontSize: "11px", width: "100%" }}
+                      />
+                    </div>
+                  </div>
 
-                    const isExpanded = expandedSelectorNodes[group.name] !== false;
-
-                    return (
-                      <div key={group.name} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                        <div
-                          onClick={() => setExpandedSelectorNodes((prev) => ({ ...prev, [group.name]: !isExpanded }))}
-                          style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", fontSize: "11px", fontWeight: 700, color: "#10b981" }}
-                        >
-                          {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                          <span>{group.name}</span>
-                        </div>
-
-                        {isExpanded && (
-                          <div style={{ paddingLeft: "14px", borderLeft: "1px dashed #1e1e2e", display: "flex", flexDirection: "column", gap: "6px", marginTop: "2px" }}>
-                            {(typeSearchQuery ? filteredChildren : group.children).map((child) => (
-                              <div key={child.name} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                                <div style={{ fontSize: "10px", fontWeight: 600, color: "#a855f7" }}>
-                                  {child.name}
-                                </div>
-                                <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", paddingLeft: "8px", marginTop: "2px" }}>
-                                  {child.fields
-                                    .filter((f) => f.toLowerCase().includes(typeSearchQuery.toLowerCase()))
-                                    .map((field) => (
-                                      <button
-                                        key={field}
-                                        onClick={() => {
-                                          if (activeSelectingNodeId && activeSelectingPort) {
-                                            const fieldClean = field.split(" - ")[0]; // e.g. "ISA06"
-                                            setNodes((prev) =>
-                                              prev.map((n) => {
-                                                if (n.id !== activeSelectingNodeId) return n;
-                                                const listKey = activeSelectingPortSide === "input" ? "inputs" : "outputs";
-                                                const currentList = n[listKey];
-                                                const updatedList = currentList.map((p) => (p === activeSelectingPort ? fieldClean : p));
-                                                return { ...n, [listKey]: updatedList };
-                                              })
-                                            );
-                                          }
-                                          setShowTypeSelectionDialog(false);
-                                        }}
-                                        style={{
-                                          padding: "2px 6px", background: "#1a1a2e", border: "1px solid #27273f",
-                                          borderRadius: "4px", color: "#ececf1", fontSize: "9px", cursor: "pointer"
-                                        }}
-                                        onMouseEnter={(e) => {
-                                          e.currentTarget.style.background = "#10b981";
-                                          e.currentTarget.style.color = "#000";
-                                        }}
-                                        onMouseLeave={(e) => {
-                                          e.currentTarget.style.background = "#1a1a2e";
-                                          e.currentTarget.style.color = "#ececf1";
-                                        }}
-                                      >
-                                        {field}
-                                      </button>
-                                    ))}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                  {/* Hierarchical Tree Explorer */}
+                  <div style={{ flex: 1, overflowY: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                    {dbTypeTrees.length === 0 ? (
+                      <div style={{ padding: "20px", fontSize: "11px", color: "#6b7280", textAlign: "center" }}>
+                        No custom Type Trees uploaded yet. Import an MTT/XML/JSON schema first.
                       </div>
-                    );
-                  })}
+                    ) : (
+                      dbTypeTrees.map((tree) => (
+                        <div key={tree.id} style={{ borderBottom: "1px solid #1a1a2e", paddingBottom: "10px", marginBottom: "10px" }}>
+                          <div style={{ fontSize: "11px", fontWeight: 800, color: "#fbbf24", marginBottom: "4px" }}>
+                            {tree.name}
+                          </div>
+                          {tree.hierarchy.map((node: any) => renderSelectorNode(node, 0))}
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* ════════════════════════════════════════════════════════════
               DRAGGABLE FLOATING WINDOW: ITX AI COMPANION
@@ -2051,7 +2134,22 @@ The source segments have been linked dynamically to the target segments using th
 
                     {/* Card fields list & type tree binder */}
                     <div style={{ marginTop: "10px", borderTop: "1px dashed #1a1a28", paddingTop: "8px" }}>
-                      <div style={{ fontSize: "9px", fontWeight: 700, color: "#6b7280", marginBottom: "4px" }}>CARD FIELDS & SEGMENTS</div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                        <span style={{ fontSize: "9px", fontWeight: 700, color: "#6b7280" }}>CARD FIELDS & SEGMENTS</span>
+                        {(node.type === "source" || node.type === "target" || node.type === "temporary") && (
+                          <button
+                            onClick={() => {
+                              setActiveSelectingNodeId(node.id);
+                              setActiveSelectingPort("__WHOLE_SCHEMA__");
+                              setActiveSelectingPortSide(node.type === "source" ? "output" : "input");
+                              setShowTypeSelectionDialog(true);
+                            }}
+                            style={{ padding: "2px 6px", background: "#fbbf2415", border: "1px solid #fbbf2433", borderRadius: "4px", color: "#fbbf24", fontSize: "9px", cursor: "pointer", fontWeight: 700 }}
+                          >
+                            Assign Schema Tree...
+                          </button>
+                        )}
+                      </div>
                       
                       {node.inputs.map((p) => (
                         <div key={p} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0" }}>

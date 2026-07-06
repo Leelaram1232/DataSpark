@@ -19,6 +19,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException, status, UploadFile
 from app.api.deps import CurrentUser, DbSession
 from app.core.database import get_db, get_supabase_client
 from app.core.config import get_settings
+from app.services.parser_service import ParserService
 
 router = APIRouter(prefix="/edi", tags=["EDI Studio"])
 settings = get_settings()
@@ -773,3 +774,228 @@ async def approve_dataset_item(dataset_id: uuid.UUID, approve: bool, current_use
         )
     except Exception:
         raise HTTPException(status_code=400, detail="Failed to update dataset approval status")
+
+@router.post("/import/{project_id}")
+async def import_file(
+    project_id: uuid.UUID,
+    current_user: CurrentUser,
+    file: UploadFile = File(...),
+):
+    """
+    Unified import endpoint. Automatically detects file types (PDF, DOCX, XLSX, XML, JSON, CSV, MTT, MMS, ZIP).
+    Parses structural metadata, inserts into corresponding Supabase tables, logs to training files,
+    adds metadata records in project_files tree, and uploads the binary file.
+    """
+    import zipfile
+    import io
+    content = await file.read()
+    filename = file.filename
+    ext = filename.split(".")[-1].lower() if "." in filename else ""
+    client = get_supabase_client()
+
+    async def add_to_project_files(file_name: str, folder: str, file_bytes: bytes, file_ext: str):
+        path = f"{folder}/{file_name}"
+        try:
+            supabase_path = f"{project_id}/{path}"
+            client.storage.from_("project_files").upload(supabase_path, file_bytes, {"upsert": "true"})
+        except Exception:
+            pass
+
+        try:
+            parent_path = folder
+            exist_res = client.table("project_files").select("id").eq("project_id", str(project_id)).eq("path", path).execute()
+            file_payload = {
+                "project_id": str(project_id),
+                "name": file_name,
+                "path": path,
+                "storage_path": f"{project_id}/{path}",
+                "file_type": file_ext,
+                "size_bytes": len(file_bytes),
+                "is_directory": False,
+                "parent_path": parent_path
+            }
+            if exist_res.data:
+                client.table("project_files").update(file_payload).eq("id", exist_res.data[0]["id"]).execute()
+            else:
+                client.table("project_files").insert(file_payload).execute()
+        except Exception:
+            pass
+
+    async def add_to_training(file_name: str, size: int, meta: dict):
+        try:
+            train_path = f"Training/{file_name}"
+            client.table("project_files").insert({
+                "project_id": str(project_id),
+                "name": file_name,
+                "path": train_path,
+                "file_type": file_name.split(".")[-1],
+                "size_bytes": size,
+                "is_directory": False,
+                "parent_path": "Training"
+            }).execute()
+
+            client.table("training_datasets").insert({
+                "project_id": str(project_id),
+                "name": file_name,
+                "status": "pending",
+                "metadata": {
+                    "file_size": size,
+                    "type": meta.get("type", "document")
+                }
+            }).execute()
+        except Exception:
+            pass
+
+    async def import_single_file(file_name: str, file_bytes: bytes, file_ext: str) -> Dict[str, Any]:
+        if file_ext == "mtt":
+            hierarchy = ParserService.parse_mtt(file_bytes, file_name)
+            payload = {
+                "id": str(uuid.uuid4()),
+                "project_id": str(project_id),
+                "name": file_name,
+                "hierarchy": hierarchy,
+                "metadata": {"size_bytes": len(file_bytes), "type": "parsed_tree"}
+            }
+            client.table("type_trees").insert(payload).execute()
+            await add_to_project_files(file_name, "Type Trees", file_bytes, "mtt")
+            await add_to_training(file_name, len(file_bytes), {"type": "type_tree"})
+            return {"type": "type_tree", "name": file_name}
+
+        elif file_ext == "mms":
+            map_data = ParserService.parse_mms(file_bytes, file_name)
+            payload = {
+                "id": str(uuid.uuid4()),
+                "project_id": str(project_id),
+                "name": map_data["name"],
+                "description": map_data["description"],
+                "source_format": map_data["source_format"],
+                "target_format": map_data["target_format"],
+                "map_content": map_data["map_content"],
+                "status": map_data["status"],
+                "version": map_data["version"]
+            }
+            client.table("edi_maps").insert(payload).execute()
+            await add_to_project_files(file_name, "Maps", file_bytes, "mms")
+            await add_to_training(file_name, len(file_bytes), {"type": "map"})
+            return {"type": "map", "name": file_name}
+
+        elif file_ext in ["xml", "json"]:
+            try:
+                if file_ext == "xml":
+                    hierarchy = ParserService.parse_xml(file_bytes)
+                else:
+                    hierarchy = ParserService.parse_json(file_bytes)
+                    
+                payload = {
+                    "id": str(uuid.uuid4()),
+                    "project_id": str(project_id),
+                    "name": file_name,
+                    "hierarchy": hierarchy,
+                    "metadata": {"size_bytes": len(file_bytes), "type": f"parsed_{file_ext}"}
+                }
+                client.table("type_trees").insert(payload).execute()
+                
+                target_folder = "Type Trees" if file_ext == "xml" else "Test Data"
+                await add_to_project_files(file_name, target_folder, file_bytes, file_ext)
+                await add_to_training(file_name, len(file_bytes), {"type": file_ext})
+                return {"type": "type_tree", "name": file_name}
+            except Exception:
+                file_ext = "txt"
+
+        if file_ext in ["pdf", "docx", "xlsx", "csv", "txt"]:
+            parsed_spec = {}
+            if file_ext == "pdf":
+                parsed_spec = ParserService.parse_pdf(file_bytes)
+            elif file_ext == "docx":
+                parsed_spec = ParserService.parse_docx(file_bytes)
+            elif file_ext == "xlsx":
+                parsed_spec = ParserService.parse_xlsx(file_bytes)
+            elif file_ext == "csv":
+                parsed_spec = ParserService.parse_csv(file_bytes)
+            else:
+                txt = file_bytes.decode("utf-8", errors="ignore")
+                parsed_spec = {
+                    "title": file_name,
+                    "extracted_glossary": ["General Text Chunks"],
+                    "business_rules": [],
+                    "source_fields": ["ISA06"],
+                    "target_fields": ["BELNR"],
+                    "loops": [{"id": "PO1 Loop", "description": "Iterates line items details"}],
+                    "conditions": [],
+                    "full_text": txt
+                }
+
+            payload = {
+                "id": str(uuid.uuid4()),
+                "project_id": str(project_id),
+                "name": file_name,
+                "extracted_glossary": parsed_spec["extracted_glossary"],
+                "business_rules": parsed_spec["business_rules"],
+                "source_fields": parsed_spec["source_fields"],
+                "target_fields": parsed_spec["target_fields"],
+                "loops": parsed_spec["loops"],
+                "conditions": parsed_spec["conditions"]
+            }
+            client.table("specifications").insert(payload).execute()
+
+            try:
+                doc_payload = {
+                    "chunk_id": f"spec_chunk_{uuid.uuid4()}",
+                    "source": f"Specification: {file_name}",
+                    "content": f"Specification file {file_name}:\n{parsed_spec.get('full_text', '')[:1000]}"
+                }
+                client.table("itx_documentation").insert(doc_payload).execute()
+            except Exception:
+                pass
+
+            await add_to_project_files(file_name, "Specifications", file_bytes, file_ext)
+            await add_to_training(file_name, len(file_bytes), {"type": "specification"})
+            return {"type": "specification", "name": file_name}
+            
+        await add_to_project_files(file_name, "Documentation", file_bytes, file_ext)
+        return {"type": "generic", "name": file_name}
+
+    imported_results = []
+    if ext == "zip":
+        try:
+            zip_mem = io.BytesIO(content)
+            with zipfile.ZipFile(zip_mem) as archive:
+                for file_info in archive.infolist():
+                    if file_info.is_dir():
+                        continue
+                    sub_file_bytes = archive.read(file_info.filename)
+                    sub_file_name = file_info.filename.split("/")[-1]
+                    sub_file_ext = sub_file_name.split(".")[-1].lower() if "." in sub_file_name else ""
+                    
+                    res = await import_single_file(sub_file_name, sub_file_bytes, sub_file_ext)
+                    imported_results.append(res)
+            return {"status": "success", "message": f"Successfully unzipped and parsed {len(imported_results)} files.", "files": imported_results}
+        except Exception as zip_err:
+            raise HTTPException(status_code=400, detail=f"Failed to extract zip file: {str(zip_err)}")
+
+    res = await import_single_file(filename, content, ext)
+    return {"status": "success", "imported": res}
+
+@router.delete("/specifications/{spec_id}")
+async def delete_specification(spec_id: uuid.UUID, current_user: CurrentUser):
+    """Delete specification by ID, remove from project files registry, and clean Supabase storage."""
+    client = get_supabase_client()
+    try:
+        res = client.table("specifications").select("name, project_id").eq("id", str(spec_id)).execute()
+        if res.data:
+            spec = res.data[0]
+            name = spec["name"]
+            project_id = spec["project_id"]
+            
+            client.table("specifications").delete().eq("id", str(spec_id)).execute()
+            
+            path = f"Specifications/{name}"
+            client.table("project_files").delete().eq("project_id", str(project_id)).eq("path", path).execute()
+            
+            try:
+                client.storage.from_("project_files").remove([f"{project_id}/{path}"])
+            except Exception:
+                pass
+        return {"message": "Specification deleted successfully", "success": True}
+    except Exception as err:
+        raise HTTPException(status_code=400, detail=f"Failed to delete specification: {str(err)}")

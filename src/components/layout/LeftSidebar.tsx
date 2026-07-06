@@ -289,6 +289,7 @@ function SidebarIcon({
 }
 
 import { useProjectStore, ProjectFile } from "@/store/projectStore";
+import { useFileTree } from "@/lib/hooks";
 import { Edit2, Trash2, Copy, FilePlus, FolderPlus } from "lucide-react";
 
 interface ContextMenuState {
@@ -298,9 +299,24 @@ interface ContextMenuState {
   node: ProjectFile | null;
 }
 
+// Mapped helper function
+const mapDbTreeToProjectFiles = (nodes: any[]): any[] => {
+  if (!nodes) return [];
+  return nodes.map(node => ({
+    name: node.name,
+    type: node.is_directory ? "folder" : "file",
+    ext: node.name.split(".").pop(),
+    children: node.is_directory ? mapDbTreeToProjectFiles(node.children || []) : undefined
+  }));
+};
+
 function ExplorerPanel({ mounted }: { mounted: boolean }) {
   const { activeProject, importSampleProject, createProject } = useProjectStore();
   const project = mounted ? activeProject() : null;
+  const { data: dbFileTree } = useFileTree(project?.id || "");
+  const displayFiles = dbFileTree && dbFileTree.length > 0 
+    ? mapDbTreeToProjectFiles(dbFileTree) 
+    : (project ? project.files : []);
 
   const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
   const [activeNode, setActiveNode] = useState<ProjectFile | null>(null);
@@ -486,8 +502,8 @@ function ExplorerPanel({ mounted }: { mounted: boolean }) {
               Import Sample Project
             </button>
           </div>
-        ) : project.type === "developer" && project.files.length > 0 ? (
-          project.files.map((node) => (
+        ) : displayFiles.length > 0 ? (
+          displayFiles.map((node) => (
             <FileNode
               key={node.name}
               node={node}

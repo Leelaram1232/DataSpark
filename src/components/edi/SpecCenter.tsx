@@ -1,34 +1,96 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useProjectStore } from "@/store/projectStore";
-import { FileText, UploadCloud, Search, Trash2, HelpCircle } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { FileText, UploadCloud, Search, Trash2, HelpCircle, Loader2 } from "lucide-react";
+
+const EDI_API_BASE = typeof window !== "undefined"
+  ? (window.location.origin.includes("vercel.app") ? "/api/backend/api/v1/edi" : "http://localhost:8000/api/v1/edi")
+  : "http://localhost:8000/api/v1/edi";
 
 export function SpecCenter() {
-  const { activeProject, addSpecDocument } = useProjectStore();
+  const { activeProject } = useProjectStore();
   const project = activeProject();
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [specs, setSpecs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const handleUpload = () => {
+  const loadSpecs = () => {
     if (!project) return;
-    const name = prompt("Enter specification file name:", "Partner_EDI_Guideline.pdf");
-    if (name) {
-      addSpecDocument(project.id, {
-        id: `DOC-${Math.floor(100 + Math.random() * 900)}`,
-        name,
-        type: name.endsWith(".pdf") ? "PDF Document" : "Excel Sheet",
-        size: "3.2 MB",
-        uploadedAt: "Just now",
-        extractedGlossary: ["ISA Segment", "ST Header", "PO1 Baseline Item", "SE Control Trailer"]
+    setLoading(true);
+    fetch(`${EDI_API_BASE}/specifications/${project.id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setSpecs(data || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadSpecs();
+  }, [project?.id]);
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !project) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await fetch(`${EDI_API_BASE}/import/${project.id}`, {
+        method: "POST",
+        body: formData,
       });
+
+      if (response.ok) {
+        loadSpecs();
+        // Invalidate sidebar file tree so the folder shows the new file
+        queryClient.invalidateQueries({ queryKey: ["projects", project.id, "files"] });
+      }
+    } catch (err) {
+      console.error("Failed to upload spec file:", err);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!project) return;
+    if (!confirm("Are you sure you want to delete this specification?")) return;
+
+    try {
+      const response = await fetch(`${EDI_API_BASE}/specifications/${id}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        loadSpecs();
+        queryClient.invalidateQueries({ queryKey: ["projects", project.id, "files"] });
+      }
+    } catch (err) {
+      console.error("Failed to delete spec:", err);
     }
   };
 
   if (!project) return null;
 
-  const filteredSpecs = project.specifications.filter((doc) =>
-    doc.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredSpecs = specs.filter((doc) =>
+    (doc.name || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const allTerms = specs.flatMap((s) => s.extracted_glossary || []);
 
   return (
     <div style={{ display: "flex", height: "100%", overflow: "hidden", background: "var(--bg-base)" }}>
@@ -52,8 +114,18 @@ export function SpecCenter() {
               style={{ background: "transparent", border: "none", outline: "none", color: "var(--text-primary)", fontSize: "12px", width: "100%" }}
             />
           </div>
+          
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".pdf,.docx,.xlsx,.xls,.xml,.json,.csv,.zip"
+            style={{ display: "none" }}
+          />
+
           <button
-            onClick={handleUpload}
+            onClick={handleUploadClick}
+            disabled={uploading}
             style={{
               padding: "6px 12px",
               borderRadius: "6px",
@@ -66,16 +138,25 @@ export function SpecCenter() {
               display: "flex",
               alignItems: "center",
               gap: "4px",
+              opacity: uploading ? 0.6 : 1,
             }}
           >
-            <UploadCloud size={13} />
-            Upload Spec
+            {uploading ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : (
+              <UploadCloud size={13} />
+            )}
+            {uploading ? "Importing..." : "Upload Spec"}
           </button>
         </div>
 
         {/* List of Files */}
         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
-          {filteredSpecs.length === 0 ? (
+          {loading ? (
+            <div style={{ display: "flex", justifyContent: "center", padding: "40px" }}>
+              <Loader2 size={24} className="animate-spin" style={{ color: "#10b981" }} />
+            </div>
+          ) : filteredSpecs.length === 0 ? (
             <div style={{ textAlign: "center", padding: "40px", border: "1.5px dashed var(--border-subtle)", borderRadius: "8px" }}>
               <FileText size={28} style={{ opacity: 0.15, margin: "0 auto 8px" }} />
               <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>No companion specifications uploaded yet.</p>
@@ -100,10 +181,17 @@ export function SpecCenter() {
                   </div>
                   <div>
                     <p style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{doc.name}</p>
-                    <p style={{ fontSize: "11px", color: "var(--text-muted)" }}>{doc.type} · {doc.size} · Uploaded {doc.uploadedAt}</p>
+                    <p style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                      Specification Document · Uploaded {new Date(doc.created_at || Date.now()).toLocaleDateString()}
+                    </p>
                   </div>
                 </div>
-                <button style={{ border: "none", background: "transparent", color: "var(--text-muted)", cursor: "pointer" }}>
+                <button
+                  onClick={() => handleDelete(doc.id)}
+                  style={{ border: "none", background: "transparent", color: "var(--text-muted)", cursor: "pointer" }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = "#ef4444"}
+                  onMouseLeave={(e) => e.currentTarget.style.color = "var(--text-muted)"}
+                >
                   <Trash2 size={13} />
                 </button>
               </div>
@@ -116,12 +204,12 @@ export function SpecCenter() {
       <div style={{ width: "240px", padding: "20px", display: "flex", flexDirection: "column", gap: "12px", flexShrink: 0 }}>
         <p style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.05em" }}>SEMANTIC DICTIONARY</p>
         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
-          {project.specifications.length === 0 ? (
+          {allTerms.length === 0 ? (
             <p style={{ fontSize: "11px", color: "var(--text-disabled)", fontStyle: "italic" }}>
               Upload files to extract segments terms dictionary.
             </p>
           ) : (
-            project.specifications.flatMap((s) => s.extractedGlossary).map((term, index) => (
+            allTerms.map((term, index) => (
               <div key={index} style={{ padding: "6px 8px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "6px", fontSize: "11px", color: "var(--text-secondary)" }}>
                 {term}
               </div>

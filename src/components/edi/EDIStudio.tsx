@@ -68,6 +68,10 @@ const statusColors = {
   disconnected: "#f87171",
 };
 
+const EDI_API_BASE = typeof window !== "undefined"
+  ? (window.location.origin.includes("vercel.app") ? "/api/backend/api/v1/edi" : "http://localhost:8000/api/v1/edi")
+  : "http://localhost:8000/api/v1/edi";
+
 export function EDIStudio() {
   const { activeProject, importSampleProject, createProject } = useProjectStore();
   const project = activeProject();
@@ -93,19 +97,19 @@ export function EDIStudio() {
     if (project) {
       setLoadingIntel(true);
       // Fetch Project Intelligence
-      fetch(`http://localhost:8000/api/v1/edi/intelligence/${project.id}`)
+      fetch(`${EDI_API_BASE}/intelligence/${project.id}`)
         .then((res) => res.json())
         .then((data) => setIntelligenceData(data))
         .catch(() => {});
 
       // Fetch Dashboard
-      fetch(`http://localhost:8000/api/v1/edi/model-dashboard/${project.id}`)
+      fetch(`${EDI_API_BASE}/model-dashboard/${project.id}`)
         .then((res) => res.json())
         .then((data) => setDashboardData(data))
         .catch(() => {});
 
       // Fetch Training history
-      fetch(`http://localhost:8000/api/v1/edi/training/${project.id}`)
+      fetch(`${EDI_API_BASE}/training/${project.id}`)
         .then((res) => res.json())
         .then((data) => {
           setTrainingHistory(data);
@@ -122,7 +126,7 @@ export function EDIStudio() {
     setAiInput("");
     setChatLoading(true);
 
-    fetch(`http://localhost:8000/api/v1/edi/chat/${project.id}`, {
+    fetch(`${EDI_API_BASE}/chat/${project.id}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -142,14 +146,14 @@ export function EDIStudio() {
       .catch(() => {
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: "Failed to fetch response from backend RAG service." },
+          { role: "assistant", content: "Failed to fetch response from RAG RAG service." },
         ]);
         setChatLoading(false);
       });
   };
 
   const handleApproveDataset = (id: string, approve: boolean) => {
-    fetch(`http://localhost:8000/api/v1/edi/training/approve/${id}?approve=${approve}`, {
+    fetch(`${EDI_API_BASE}/training/approve/${id}?approve=${approve}`, {
       method: "POST",
     })
       .then((res) => res.json())

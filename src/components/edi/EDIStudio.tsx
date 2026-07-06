@@ -72,6 +72,14 @@ const EDI_API_BASE = typeof window !== "undefined"
   ? (window.location.origin.includes("vercel.app") ? "/api/backend/api/v1/edi" : "http://localhost:8000/api/v1/edi")
   : "http://localhost:8000/api/v1/edi";
 
+const getAuthHeaders = (headers: Record<string, string> = {}) => {
+  const token = typeof window !== "undefined" ? localStorage.getItem("dataspark_access_token") : null;
+  if (token) {
+    return { ...headers, Authorization: `Bearer ${token}` };
+  }
+  return headers;
+};
+
 export function EDIStudio() {
   const { activeProject, importSampleProject, createProject } = useProjectStore();
   const project = activeProject();
@@ -97,19 +105,25 @@ export function EDIStudio() {
     if (project) {
       setLoadingIntel(true);
       // Fetch Project Intelligence
-      fetch(`${EDI_API_BASE}/intelligence/${project.id}`)
+      fetch(`${EDI_API_BASE}/intelligence/${project.id}`, {
+        headers: getAuthHeaders()
+      })
         .then((res) => res.json())
         .then((data) => setIntelligenceData(data))
         .catch(() => {});
 
       // Fetch Dashboard
-      fetch(`${EDI_API_BASE}/model-dashboard/${project.id}`)
+      fetch(`${EDI_API_BASE}/model-dashboard/${project.id}`, {
+        headers: getAuthHeaders()
+      })
         .then((res) => res.json())
         .then((data) => setDashboardData(data))
         .catch(() => {});
 
       // Fetch Training history
-      fetch(`${EDI_API_BASE}/training/${project.id}`)
+      fetch(`${EDI_API_BASE}/training/${project.id}`, {
+        headers: getAuthHeaders()
+      })
         .then((res) => res.json())
         .then((data) => {
           setTrainingHistory(data);
@@ -128,7 +142,7 @@ export function EDIStudio() {
 
     fetch(`${EDI_API_BASE}/chat/${project.id}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         message: aiInput,
         model_provider: activeProviderId,
@@ -155,6 +169,7 @@ export function EDIStudio() {
   const handleApproveDataset = (id: string, approve: boolean) => {
     fetch(`${EDI_API_BASE}/training/approve/${id}?approve=${approve}`, {
       method: "POST",
+      headers: getAuthHeaders()
     })
       .then((res) => res.json())
       .then((updated) => {

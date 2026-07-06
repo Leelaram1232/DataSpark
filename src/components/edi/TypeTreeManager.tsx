@@ -18,6 +18,14 @@ const EDI_API_BASE = typeof window !== "undefined"
   ? (window.location.origin.includes("vercel.app") ? "/api/backend/api/v1/edi" : "http://localhost:8000/api/v1/edi")
   : "http://localhost:8000/api/v1/edi";
 
+const getAuthHeaders = (headers: Record<string, string> = {}) => {
+  const token = typeof window !== "undefined" ? localStorage.getItem("dataspark_access_token") : null;
+  if (token) {
+    return { ...headers, Authorization: `Bearer ${token}` };
+  }
+  return headers;
+};
+
 export function TypeTreeManager() {
   const { activeProject } = useProjectStore();
   const project = activeProject();
@@ -31,7 +39,9 @@ export function TypeTreeManager() {
   useEffect(() => {
     if (!project) return;
     setLoading(true);
-    fetch(`${EDI_API_BASE}/type-trees/${project.id}`)
+    fetch(`${EDI_API_BASE}/type-trees/${project.id}`, {
+      headers: getAuthHeaders()
+    })
       .then((res) => res.json())
       .then((data) => {
         setTypeTrees(data || []);

@@ -797,7 +797,7 @@ async def import_file(
         path = f"{folder}/{file_name}"
         try:
             supabase_path = f"{project_id}/{path}"
-            client.storage.from_("project_files").upload(supabase_path, file_bytes, {"upsert": "true"})
+            client.storage.from_(settings.storage_bucket).upload(supabase_path, file_bytes, {"upsert": "true"})
         except Exception:
             pass
 
@@ -993,7 +993,7 @@ async def delete_specification(spec_id: uuid.UUID, current_user: CurrentUser):
             client.table("project_files").delete().eq("project_id", str(project_id)).eq("path", path).execute()
             
             try:
-                client.storage.from_("project_files").remove([f"{project_id}/{path}"])
+                client.storage.from_(settings.storage_bucket).remove([f"{project_id}/{path}"])
             except Exception:
                 pass
         return {"message": "Specification deleted successfully", "success": True}

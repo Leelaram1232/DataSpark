@@ -283,3 +283,23 @@ SELECT table_name
 FROM information_schema.tables
 WHERE table_schema = 'public'
 ORDER BY table_name;
+
+-- ── 17. Storage Buckets Initialization ────────────────────────────────
+INSERT INTO storage.buckets (id, name, public)
+VALUES 
+  ('project_files', 'project_files', true),
+  ('dataspark-files', 'dataspark-files', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Storage object policies for 'project_files' and 'dataspark-files'
+DROP POLICY IF EXISTS "Allow public uploads" ON storage.objects;
+CREATE POLICY "Allow public uploads" ON storage.objects FOR INSERT WITH CHECK (bucket_id IN ('project_files', 'dataspark-files'));
+
+DROP POLICY IF EXISTS "Allow public selection" ON storage.objects;
+CREATE POLICY "Allow public selection" ON storage.objects FOR SELECT USING (bucket_id IN ('project_files', 'dataspark-files'));
+
+DROP POLICY IF EXISTS "Allow public updates" ON storage.objects;
+CREATE POLICY "Allow public updates" ON storage.objects FOR UPDATE USING (bucket_id IN ('project_files', 'dataspark-files'));
+
+DROP POLICY IF EXISTS "Allow public deletes" ON storage.objects;
+CREATE POLICY "Allow public deletes" ON storage.objects FOR DELETE USING (bucket_id IN ('project_files', 'dataspark-files'));

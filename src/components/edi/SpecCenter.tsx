@@ -9,6 +9,14 @@ const EDI_API_BASE = typeof window !== "undefined"
   ? (window.location.origin.includes("vercel.app") ? "/api/backend/api/v1/edi" : "http://localhost:8000/api/v1/edi")
   : "http://localhost:8000/api/v1/edi";
 
+const getAuthHeaders = (headers: Record<string, string> = {}) => {
+  const token = typeof window !== "undefined" ? localStorage.getItem("dataspark_access_token") : null;
+  if (token) {
+    return { ...headers, Authorization: `Bearer ${token}` };
+  }
+  return headers;
+};
+
 export function SpecCenter() {
   const { activeProject } = useProjectStore();
   const project = activeProject();
@@ -23,7 +31,9 @@ export function SpecCenter() {
   const loadSpecs = () => {
     if (!project) return;
     setLoading(true);
-    fetch(`${EDI_API_BASE}/specifications/${project.id}`)
+    fetch(`${EDI_API_BASE}/specifications/${project.id}`, {
+      headers: getAuthHeaders()
+    })
       .then((res) => res.json())
       .then((data) => {
         setSpecs(data || []);
@@ -51,6 +61,7 @@ export function SpecCenter() {
     try {
       const response = await fetch(`${EDI_API_BASE}/import/${project.id}`, {
         method: "POST",
+        headers: getAuthHeaders(),
         body: formData,
       });
 
@@ -74,6 +85,7 @@ export function SpecCenter() {
     try {
       const response = await fetch(`${EDI_API_BASE}/specifications/${id}`, {
         method: "DELETE",
+        headers: getAuthHeaders()
       });
       if (response.ok) {
         loadSpecs();

@@ -201,6 +201,14 @@ const EDI_API_BASE = typeof window !== "undefined"
   ? (window.location.origin.includes("vercel.app") ? "/api/backend/api/v1/edi" : "http://localhost:8000/api/v1/edi")
   : "http://localhost:8000/api/v1/edi";
 
+const getAuthHeaders = (headers: Record<string, string> = {}) => {
+  const token = typeof window !== "undefined" ? localStorage.getItem("dataspark_access_token") : null;
+  if (token) {
+    return { ...headers, Authorization: `Bearer ${token}` };
+  }
+  return headers;
+};
+
 export function MapDesigner() {
   const { activeProject } = useProjectStore();
   const project = activeProject();
@@ -210,7 +218,9 @@ export function MapDesigner() {
   
   const loadTypeTrees = () => {
     if (!project) return;
-    fetch(`${EDI_API_BASE}/type-trees/${project.id}`)
+    fetch(`${EDI_API_BASE}/type-trees/${project.id}`, {
+      headers: getAuthHeaders()
+    })
       .then((res) => res.json())
       .then((data) => setDbTypeTrees(data || []))
       .catch(() => {});
@@ -313,6 +323,7 @@ export function MapDesigner() {
     try {
       const response = await fetch(`${EDI_API_BASE}/import/${project.id}`, {
         method: "POST",
+        headers: getAuthHeaders(),
         body: formData,
       });
 
@@ -396,7 +407,9 @@ export function MapDesigner() {
     const delayDebounce = setTimeout(() => {
       if (searchQuery.trim().length > 1) {
         setIsSearching(true);
-        fetch(`${EDI_API_BASE}/docs?query=${encodeURIComponent(searchQuery)}`)
+        fetch(`${EDI_API_BASE}/docs?query=${encodeURIComponent(searchQuery)}`, {
+          headers: getAuthHeaders()
+        })
           .then((res) => res.json())
           .then((data) => {
             setDocResults(data);
@@ -413,7 +426,9 @@ export function MapDesigner() {
   // ── Load maps from backend if project changes ────────────────────────
   useEffect(() => {
     if (project) {
-      fetch(`${EDI_API_BASE}/maps/${project.id}`)
+      fetch(`${EDI_API_BASE}/maps/${project.id}`, {
+        headers: getAuthHeaders()
+      })
         .then((res) => res.json())
         .then((data) => {
           if (data && data.length > 0) {
@@ -838,7 +853,7 @@ The source segments have been linked dynamically to the target segments using th
     try {
       const response = await fetch(`${EDI_API_BASE}/maps/${project.id}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           name: "EDI_Translation_Map",
           description: "Sterling ITX-like translation definition",

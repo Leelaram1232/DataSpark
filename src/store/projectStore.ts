@@ -97,6 +97,17 @@ interface ProjectStore {
   addEdiMap: (projectId: string, map: EdiMapData) => void;
 }
 
+const generateUUID = (): string => {
+  if (typeof window !== "undefined" && window.crypto && window.crypto.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 export const useProjectStore = create<ProjectStore>()(
   persist(
     (set, get) => ({
@@ -104,11 +115,31 @@ export const useProjectStore = create<ProjectStore>()(
       activeProjectId: null,
       activeProject: () => {
         const state = get();
+        const nonUuidProjects = state.projects.filter(
+          (p) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(p.id)
+        );
+        if (nonUuidProjects.length > 0) {
+          const updatedProjects = state.projects.map((p) => {
+            if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(p.id)) {
+              const newId = generateUUID();
+              if (state.activeProjectId === p.id) {
+                setTimeout(() => {
+                  set({ activeProjectId: newId });
+                }, 0);
+              }
+              return { ...p, id: newId };
+            }
+            return p;
+          });
+          setTimeout(() => {
+            set({ projects: updatedProjects });
+          }, 0);
+        }
         return state.projects.find((p) => p.id === state.activeProjectId) || null;
       },
       createProject: (name, type) => {
         const newProject: Project = {
-          id: `PRJ-${Math.floor(1000 + Math.random() * 9000)}`,
+          id: generateUUID(),
           name,
           description: `Custom ${type} engineering workspace.`,
           type,
@@ -145,7 +176,7 @@ export const useProjectStore = create<ProjectStore>()(
         return newProject;
       },
       importSampleProject: (type) => {
-        const id = `SMPL-${type.toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`;
+        const id = generateUUID();
         let sample: Project;
         
         if (type === "developer") {

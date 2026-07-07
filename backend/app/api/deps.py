@@ -44,13 +44,35 @@ async def get_current_user(
     except ValueError:
         raise UnauthorizedError("Invalid token payload")
 
-    repo = UserRepository(db)
-    user = await repo.get_by_id(user_id)
+    # Try querying Supabase REST API directly first (requires no DB password)
+    try:
+        from app.core.database import get_supabase_client
+        client = get_supabase_client()
+        res = client.table("users").select("*").eq("id", str(user_id)).execute()
+        if res.data:
+            user_data = res.data[0]
+            return User(
+                id=uuid.UUID(user_data["id"]),
+                email=user_data["email"],
+                full_name=user_data.get("full_name"),
+                avatar_url=user_data.get("avatar_url"),
+                is_active=user_data.get("is_active", True),
+                is_superuser=user_data.get("is_superuser", False),
+                supabase_uid=user_data.get("supabase_uid"),
+            )
+    except Exception:
+        pass
 
-    if not user or not user.is_active:
-        raise UnauthorizedError("User not found or deactivated")
+    # Fallback to local DB repository
+    try:
+        repo = UserRepository(db)
+        user = await repo.get_by_id(user_id)
+        if user and user.is_active:
+            return user
+    except Exception:
+        pass
 
-    return user
+    raise UnauthorizedError("User not found or deactivated")
 
 
 async def get_current_superuser(

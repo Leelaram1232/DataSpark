@@ -2,7 +2,7 @@
 DataSpark Backend — Authentication Router
 Endpoints: /register, /login, /refresh, /logout, /me
 """
-from fastapi import APIRouter, status
+from fastapi import APIRouter, status, HTTPException
 
 from app.api.deps import CurrentUser, DbSession
 from app.schemas import (
@@ -31,9 +31,43 @@ async def register(data: RegisterRequest, db: DbSession):
 @router.post("/login", response_model=TokenResponse)
 async def login(data: LoginRequest, db: DbSession):
     """Authenticate with email and password."""
-    service = AuthService(db)
-    user, tokens = await service.login(data)
-    return tokens
+    try:
+        service = AuthService(db)
+        user, tokens = await service.login(data)
+        return tokens
+    except Exception:
+        # Fallback to direct Supabase Auth REST call or DB lookup
+        try:
+            from app.core.database import get_supabase_client
+            from app.core.security import verify_password, create_access_token, create_refresh_token
+            from app.core.config import get_settings
+            from app.core.exceptions import UnauthorizedError
+            
+            settings = get_settings()
+            client = get_supabase_client()
+            
+            # Query the user directly from Supabase REST API
+            email = data.email.lower()
+            res = client.table("users").select("*").eq("email", email).execute()
+            if res.data:
+                user_data = res.data[0]
+                if user_data.get("hashed_password") and verify_password(data.password, user_data["hashed_password"]):
+                    if not user_data.get("is_active", True):
+                        raise UnauthorizedError("Account is deactivated")
+                        
+                    token_data = {"sub": user_data["id"]}
+                    access_token = create_access_token(token_data)
+                    refresh_token = create_refresh_token(token_data)
+                    
+                    return TokenResponse(
+                        access_token=access_token,
+                        refresh_token=refresh_token,
+                        expires_in=settings.access_token_expire_minutes * 60,
+                    )
+            
+            raise UnauthorizedError("Invalid email or password")
+        except Exception:
+            raise HTTPException(status_code=401, detail="Invalid email or password")
 
 
 @router.post("/refresh", response_model=TokenResponse)

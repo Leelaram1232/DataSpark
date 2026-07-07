@@ -42,9 +42,9 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 30
 
     # ── Supabase ───────────────────────────────────────────────────────────────
-    supabase_url: str = ""
-    supabase_anon_key: str = ""
-    supabase_service_role_key: str = ""
+    supabase_url: str = "https://ffegvfycdtjukdulkfti.supabase.co"
+    supabase_anon_key: str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmZWd2ZnljZHRqdWtkdWxrZnRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MTgyOTUsImV4cCI6MjA5ODQ5NDI5NX0.DFtQo2t_5rzCsis4O7iIod_1R6WYaD8DxIUW5qO8h8Y"
+    supabase_service_role_key: str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmZWd2ZnljZHRqdWtkdWxrZnRpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjkxODI5NSwiZXhwIjoyMDk4NDk0Mjk1fQ.JjysBOmenZJ5VxQPovC9rrC5giBEojn-AQMYn3rsGzc"
 
     # ── Database ───────────────────────────────────────────────────────────────
     database_url: str = "postgresql+asyncpg://postgres:password@localhost:5432/dataspark"

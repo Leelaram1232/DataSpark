@@ -335,7 +335,7 @@ export function MapDesigner() {
 
   // ── ITX AI Companion Floating Window State ───────────────────────────
   const [showCompanion, setShowCompanion] = useState(true);
-  const [companionPos, setCompanionPos] = useState({ x: 480, y: 80 });
+  const [companionPos, setCompanionPos] = useState({ x: 40, y: 80 });
   const [isDraggingCompanion, setIsDraggingCompanion] = useState(false);
   const [companionDragOffset, setCompanionDragOffset] = useState({ x: 0, y: 0 });
   const [aiInput, setAiInput] = useState("");
@@ -1820,7 +1820,7 @@ ${loopMappings.map(l =>
                 background: "#0f0f18", border: "1px solid #222230",
                 borderRadius: "12px", boxShadow: "0 20px 50px rgba(0,0,0,0.6)",
                 padding: "20px", display: "flex", flexDirection: "column", gap: "14px",
-                maxHeight: "90vh", overflow: "hidden",
+                maxHeight: "90vh", overflowY: "auto",
               }}>
 
                 {/* Header */}
@@ -2002,7 +2002,7 @@ ${loopMappings.map(l =>
                 {wizardPhase === "plan" && (<>
                   <div style={{
                     flex: 1, overflowY: "auto", background: "#080812", border: "1px solid #1a1a2e",
-                    borderRadius: "8px", padding: "16px", maxHeight: "55vh",
+                    borderRadius: "8px", padding: "16px", maxHeight: "38vh",
                     fontSize: "11px", lineHeight: 1.7, color: "#d1d5db",
                     fontFamily: "var(--font-mono)", whiteSpace: "pre-wrap",
                   }}>

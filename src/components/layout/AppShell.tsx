@@ -313,7 +313,7 @@ export function AppShell({ children, workspace }: AppShellProps) {
           </div>
 
           {/* Bottom panel resize handle */}
-          {bottomPanelOpen && !bottomPanelMaximized && (
+          {bottomPanelOpen && !bottomPanelMaximized && workspace === "developer" && (
             <div
               onMouseDown={startBottomResize}
               style={{
@@ -331,9 +331,9 @@ export function AppShell({ children, workspace }: AppShellProps) {
               }}
             />
           )}
-
+ 
           {/* Bottom panel */}
-          {bottomPanelOpen && (
+          {bottomPanelOpen && workspace === "developer" && (
             <div
               style={{
                 height: bottomPanelMaximized ? "100%" : bottomPanelHeight,

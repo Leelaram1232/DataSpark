@@ -71,7 +71,7 @@ async def get_current_user(
                 )
             else:
                 # Auto-create the user in our public.users table
-                new_user_id = str(uuid.uuid4())
+                new_user_id = str(sb_user.id)
                 new_user_payload = {
                     "id": new_user_id,
                     "email": sb_user.email.lower(),

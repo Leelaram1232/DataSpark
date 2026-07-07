@@ -5,6 +5,7 @@ Business logic for project management.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,32 +32,75 @@ class ProjectService:
     async def create_project(
         self, data: ProjectCreate, owner_id: uuid.UUID
     ) -> ProjectResponse:
-        project = await self.project_repo.create({
-            "name": data.name,
-            "description": data.description,
-            "workspace_type": data.workspace_type,
-            "owner_id": owner_id,
-            "organization_id": data.organization_id,
-            "is_public": data.is_public,
-            "settings": data.settings,
-        })
-
-        # Auto-create the 11 standard directories for every project workspace
-        folders = [
-            "Maps", "Type Trees", "Specifications", "Test Data",
-            "Documentation", "AI Conversations", "Knowledge", "Training",
-            "Deployments", "Outputs", "Logs"
-        ]
-        for folder in folders:
-            await self.file_repo.create({
-                "project_id": project.id,
-                "name": folder,
-                "path": folder,
-                "is_directory": True,
-                "parent_path": None,
+        try:
+            project = await self.project_repo.create({
+                "name": data.name,
+                "description": data.description,
+                "workspace_type": data.workspace_type,
+                "owner_id": owner_id,
+                "organization_id": data.organization_id,
+                "is_public": data.is_public,
+                "settings": data.settings,
             })
 
-        return ProjectResponse.model_validate(project)
+            # Auto-create the 11 standard directories for every project workspace
+            folders = [
+                "Maps", "Type Trees", "Specifications", "Test Data",
+                "Documentation", "AI Conversations", "Knowledge", "Training",
+                "Deployments", "Outputs", "Logs"
+            ]
+            for folder in folders:
+                await self.file_repo.create({
+                    "project_id": project.id,
+                    "name": folder,
+                    "path": folder,
+                    "is_directory": True,
+                    "parent_path": None,
+                })
+
+            return ProjectResponse.model_validate(project)
+        except Exception:
+            # Supabase REST Fallback
+            from app.core.database import get_supabase_client
+            client = get_supabase_client()
+            proj_id = str(uuid.uuid4())
+            proj_payload = {
+                "id": proj_id,
+                "name": data.name,
+                "description": data.description,
+                "workspace_type": data.workspace_type,
+                "owner_id": str(owner_id),
+                "organization_id": str(data.organization_id) if data.organization_id else None,
+                "is_public": data.is_public,
+                "settings": data.settings or {}
+            }
+            client.table("projects").insert(proj_payload).execute()
+            
+            folders = [
+                "Maps", "Type Trees", "Specifications", "Test Data",
+                "Documentation", "AI Conversations", "Knowledge", "Training",
+                "Deployments", "Outputs", "Logs"
+            ]
+            for folder in folders:
+                client.table("project_files").insert({
+                    "id": str(uuid.uuid4()),
+                    "project_id": proj_id,
+                    "name": folder,
+                    "path": folder,
+                    "is_directory": True,
+                    "parent_path": None
+                }).execute()
+                
+            return ProjectResponse(
+                id=uuid.UUID(proj_id),
+                name=data.name,
+                description=data.description,
+                workspace_type=data.workspace_type,
+                owner_id=owner_id,
+                organization_id=data.organization_id,
+                is_public=data.is_public,
+                created_at=datetime.now(timezone.utc)
+            )
 
     async def list_projects(
         self,
@@ -105,7 +149,7 @@ class ProjectService:
                     owner_id=uuid.UUID(p["owner_id"]) if p.get("owner_id") else None,
                     organization_id=uuid.UUID(p["organization_id"]) if p.get("organization_id") else None,
                     is_public=p.get("is_public", False),
-                    created_at=p.get("created_at")
+                    created_at=datetime.fromisoformat(p["created_at"].replace("Z", "+00:00")) if p.get("created_at") else datetime.now(timezone.utc)
                 ))
             return ProjectListResponse(
                 items=items,
@@ -140,7 +184,7 @@ class ProjectService:
                     owner_id=uuid.UUID(p["owner_id"]) if p.get("owner_id") else None,
                     organization_id=uuid.UUID(p["organization_id"]) if p.get("organization_id") else None,
                     is_public=p.get("is_public", False),
-                    created_at=p.get("created_at")
+                    created_at=datetime.fromisoformat(p["created_at"].replace("Z", "+00:00")) if p.get("created_at") else datetime.now(timezone.utc)
                 )
         raise NotFoundError("Project", str(project_id))
 
@@ -216,7 +260,9 @@ class ProjectService:
                 name=data.name,
                 path=data.path,
                 is_directory=data.is_directory,
-                parent_path=data.parent_path
+                parent_path=data.parent_path,
+                size_bytes=0,
+                created_at=datetime.now(timezone.utc)
             )
 
     async def get_file_tree(

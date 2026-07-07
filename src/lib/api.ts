@@ -4,7 +4,9 @@
  * All requests go through this single module.
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+const API_BASE = typeof window !== "undefined"
+  ? `${window.location.origin}/api/backend/api/v1`
+  : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1");
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

@@ -306,9 +306,9 @@ export function MapDesigner() {
     if (type === "spec") {
       setSpecFile(file.name);
     } else if (type === "inputTree") {
-      setInputTypeTree(file.name.replace(/\.[^/.]+$/, ""));
+      setInputTypeTree(file.name);
     } else if (type === "outputTree") {
-      setOutputTypeTree(file.name.replace(/\.[^/.]+$/, ""));
+      setOutputTypeTree(file.name);
     } else if (type === "inputData") {
       setInputFile(file.name);
     }

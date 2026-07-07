@@ -23,9 +23,54 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(data: RegisterRequest, db: DbSession):
     """Register a new user account and receive JWT tokens."""
-    service = AuthService(db)
-    user, tokens = await service.register(data)
-    return tokens
+    try:
+        service = AuthService(db)
+        user, tokens = await service.register(data)
+        return tokens
+    except Exception:
+        # Fallback to direct Supabase REST insert
+        try:
+            from app.core.database import get_supabase_client
+            from app.core.security import hash_password, create_access_token, create_refresh_token
+            from app.core.config import get_settings
+            from app.core.exceptions import ConflictError
+            import uuid
+            
+            settings = get_settings()
+            client = get_supabase_client()
+            
+            email = data.email.lower()
+            # Check if email exists
+            res = client.table("users").select("id").eq("email", email).execute()
+            if res.data:
+                raise ConflictError("Email already registered")
+                
+            new_user_id = str(uuid.uuid4())
+            payload = {
+                "id": new_user_id,
+                "email": email,
+                "hashed_password": hash_password(data.password),
+                "full_name": data.full_name,
+                "is_active": True,
+                "is_verified": False,
+                "is_superuser": False
+            }
+            
+            ins_res = client.table("users").insert(payload).execute()
+            
+            token_data = {"sub": new_user_id}
+            access_token = create_access_token(token_data)
+            refresh_token = create_refresh_token(token_data)
+            
+            return TokenResponse(
+                access_token=access_token,
+                refresh_token=refresh_token,
+                expires_in=settings.access_token_expire_minutes * 60,
+            )
+        except ConflictError as ce:
+            raise HTTPException(status_code=409, detail=str(ce))
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Registration failed: {str(e)}")
 
 
 @router.post("/login", response_model=TokenResponse)

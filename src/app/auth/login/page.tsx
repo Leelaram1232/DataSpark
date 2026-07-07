@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { useLogin } from "@/lib/hooks";
 import {
   Sparkles,
   Code2,
@@ -17,6 +18,7 @@ import {
 
 export default function LoginPage() {
   const router = useRouter();
+  const loginMutation = useLogin();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -24,9 +26,19 @@ export default function LoginPage() {
 
   const handleLogin = () => {
     setLoading(true);
-    setTimeout(() => {
-      router.push("/");
-    }, 1000);
+    loginMutation.mutate(
+      { email, password },
+      {
+        onSuccess: () => {
+          setLoading(false);
+          router.push("/");
+        },
+        onError: (err: any) => {
+          setLoading(false);
+          alert(err.message || "Failed to sign in. Please verify your credentials.");
+        },
+      }
+    );
   };
 
   return (

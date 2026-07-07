@@ -66,9 +66,29 @@ const workspaces = [
   },
 ];
 
+import { useState, useEffect } from "react";
+
 export default function HomePage() {
   const router = useRouter();
   const { setWorkspace } = useWorkspaceStore();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem("dataspark_access_token");
+    if (!token) {
+      router.push("/auth/login");
+    } else {
+      setLoading(false);
+    }
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#060609", display: "flex", alignItems: "center", justifyContent: "center", color: "#6b7280", fontSize: "12px", fontFamily: "monospace" }}>
+        Authenticating DataSpark session...
+      </div>
+    );
+  }
 
   const handleSelect = (id: WorkspaceId) => {
     setWorkspace(id);

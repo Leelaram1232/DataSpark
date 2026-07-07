@@ -190,8 +190,8 @@ export function MapDesigner() {
       headers: getAuthHeaders()
     })
       .then((res) => res.json())
-      .then((data) => setDbTypeTrees(data || []))
-      .catch(() => {});
+      .then((data) => setDbTypeTrees(Array.isArray(data) ? data : []))
+      .catch(() => setDbTypeTrees([]));
   };
 
   const loadSpecs = () => {
@@ -200,8 +200,8 @@ export function MapDesigner() {
       headers: getAuthHeaders()
     })
       .then((res) => res.json())
-      .then((data) => setDbSpecs(data || []))
-      .catch(() => {});
+      .then((data) => setDbSpecs(Array.isArray(data) ? data : []))
+      .catch(() => setDbSpecs([]));
   };
 
   useEffect(() => {
@@ -347,6 +347,11 @@ export function MapDesigner() {
   ]);
   const [aiIsThinking, setAiIsThinking] = useState(false);
 
+  // ── 2-Phase Map Wizard State ──────────────────────────────────────────
+  const [wizardPhase, setWizardPhase] = useState<"setup" | "plan" | "building">("setup");
+  const [aiMapPlan, setAiMapPlan] = useState<string>("");
+  const [pendingMapBuild, setPendingMapBuild] = useState<{ inputTreeObj: any; outputTreeObj: any } | null>(null);
+
   // ── Nodes & Connections ──────────────────────────────────────────────
   const [nodes, setNodes] = useState<NodeItem[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
@@ -447,138 +452,433 @@ export function MapDesigner() {
      MIGRATED DB SCHEMA / RAG WIZARD GENERATOR
      ═══════════════════════════════════════════════════════════════════════ */
 
-  const handleGenerateMapFromWizard = () => {
+  /* Phase 1: Analyze spec + trees → generate AI plan, show to user */
+  const handleAnalyzeAndPlan = () => {
     const inputTreeObj = dbTypeTrees.find((t) => t.name === inputTypeTree || t.id === inputTypeTree);
     const outputTreeObj = dbTypeTrees.find((t) => t.name === outputTypeTree || t.id === outputTypeTree);
 
     if (!inputTreeObj || !outputTreeObj) {
-      alert("Please upload and select both an Input and Output Type Tree from the dropdown lists first.");
+      alert("Please select both an Input and Output Type Tree first.");
       return;
     }
 
+    const getLeafNames = (item: any): string[] => {
+      if (!item || !item.children || item.children.length === 0) return [item?.name || ""].filter(Boolean);
+      return item.children.flatMap(getLeafNames);
+    };
+
+    const srcFields: string[] = Array.isArray(inputTreeObj.hierarchy)
+      ? inputTreeObj.hierarchy.flatMap(getLeafNames)
+      : [];
+    const tgtFields: string[] = Array.isArray(outputTreeObj.hierarchy)
+      ? outputTreeObj.hierarchy.flatMap(getLeafNames)
+      : [];
+
+    // Build mapping plan by cross-referencing fields semantically
+    const directMappings: Array<{ src: string; tgt: string; note: string }> = [];
+    const functionMappings: Array<{ name: string; inputs: string[]; output: string; expr: string; desc: string }> = [];
+    const conditionMappings: Array<{ field: string; condition: string; ifTrue: string; ifFalse: string }> = [];
+    const loopMappings: Array<{ srcGroup: string; tgtGroup: string; desc: string }> = [];
+
+    const fieldSimilarity = (a: string, b: string) => {
+      const la = a.toLowerCase().replace(/[_\-\.]/g, "");
+      const lb = b.toLowerCase().replace(/[_\-\.]/g, "");
+      if (la === lb) return 1;
+      if (la.includes(lb) || lb.includes(la)) return 0.85;
+      const semanticPairs: Record<string, string[]> = {
+        "belnr": ["ponum", "ponumber", "ordernum", "beg03"],
+        "datum": ["date", "dtm02", "orderdate", "shipdate"],
+        "menge": ["qty", "quantity", "po102", "quantity1"],
+        "netwr": ["price", "unitprice", "po104", "amount"],
+        "posex": ["lineno", "linenum", "po101", "itemno"],
+        "lifnr": ["vendorid", "supplierid", "n101"],
+        "matnr": ["itemid", "sku", "po103", "partno"],
+        "zterm": ["paymentterms", "termstype", "itt03"],
+      };
+      for (const [key, aliases] of Object.entries(semanticPairs)) {
+        if ((la.includes(key) || aliases.some(a2 => la.includes(a2))) &&
+            (lb.includes(key) || aliases.some(a2 => lb.includes(a2)))) return 0.8;
+      }
+      return 0;
+    };
+
+    const matched = new Set<string>();
+    tgtFields.forEach((tgt) => {
+      if (matched.has(tgt)) return;
+      let bestSrc = "";
+      let bestScore = 0;
+      srcFields.forEach((src) => {
+        const s = fieldSimilarity(src, tgt);
+        if (s > bestScore) { bestScore = s; bestSrc = src; }
+      });
+      if (bestScore > 0.7 && bestSrc) {
+        matched.add(tgt);
+        directMappings.push({ src: bestSrc, tgt, note: bestScore === 1 ? "Exact match" : "Semantic match" });
+      }
+    });
+
+    // Detect numeric fields needing validation/transform
+    const numericFields = srcFields.filter(f =>
+      /qty|amount|price|quantity|menge|netwr|weight|count/i.test(f)
+    );
+    if (numericFields.length > 0) {
+      functionMappings.push({
+        name: "Numeric_Validator",
+        inputs: numericFields.slice(0, 3),
+        output: "Validated_Value",
+        expr: `IF(${numericFields[0]} > 0, ${numericFields[0]}, 0)`,
+        desc: "Ensures numeric fields are positive and non-null",
+      });
+    }
+
+    // Detect date fields needing format conversion
+    const dateFields = srcFields.filter(f => /date|dtm|datum|time/i.test(f));
+    if (dateFields.length > 0) {
+      functionMappings.push({
+        name: "Date_Formatter",
+        inputs: [dateFields[0]],
+        output: "Formatted_Date",
+        expr: `FORMAT_DATE(${dateFields[0]}, 'YYYYMMDD')`,
+        desc: "Converts EDI date format to ISO 8601",
+      });
+    }
+
+    // Detect string concat opportunities
+    const nameFields = srcFields.filter(f => /name|desc|label|text/i.test(f));
+    if (nameFields.length >= 2) {
+      functionMappings.push({
+        name: "Name_Concat",
+        inputs: nameFields.slice(0, 2),
+        output: "Full_Name",
+        expr: `CONCAT(${nameFields[0]}, ' ', ${nameFields[1]})`,
+        desc: "Concatenates name fields with space separator",
+      });
+    }
+
+    // Conditional mapping — status/flag fields
+    const statusFields = srcFields.filter(f => /status|type|flag|indicator|code/i.test(f));
+    if (statusFields.length > 0) {
+      const tgtStatus = tgtFields.find(f => /status|type|flag/i.test(f)) || tgtFields[tgtFields.length - 1];
+      conditionMappings.push({
+        field: statusFields[0],
+        condition: `${statusFields[0]} == 'A'`,
+        ifTrue: "'ACTIVE'  → " + tgtStatus,
+        ifFalse: "'INACTIVE' → " + tgtStatus,
+      });
+    }
+
+    // Loop detection — line item arrays
+    const lineFields = srcFields.filter(f => /po1|line|item|detail/i.test(f));
+    if (lineFields.length > 1) {
+      loopMappings.push({
+        srcGroup: "PO1_Loop (line items)",
+        tgtGroup: tgtFields.find(f => /posex|lineitem|detail/i.test(f)) ? "E1EDP01 (line items)" : "Output_LineItems",
+        desc: `Loop over each ${lineFields.length} source line item field, map to target line structure`,
+      });
+    }
+
+    // Build spec-overrides if spec was uploaded
+    let specOverrides: Array<{ src: string; tgt: string }> = [];
+    if (uploadedSpecContent) {
+      const specLines = uploadedSpecContent.split(/[\n\r]+/);
+      specLines.forEach((line) => {
+        const m = line.match(/([a-zA-Z0-9_]+)\s*(?:->|=|:)\s*([a-zA-Z0-9_]+)/);
+        if (m) specOverrides.push({ src: m[1], tgt: m[2] });
+      });
+    }
+
+    const planText = `## 📋 AI Map Building Plan
+
+**Spec:** ${specFile || "(none uploaded — using tree schema only)"}
+**Input Tree:** ${inputTypeTree} — ${srcFields.length} fields detected
+**Output Tree:** ${outputTypeTree} — ${tgtFields.length} fields detected
+
+---
+
+### 🔗 Direct Field Mappings (${directMappings.length + specOverrides.length})
+${[
+  ...specOverrides.map(m => `• \`${m.src}\` → \`${m.tgt}\` *(from spec)*`),
+  ...directMappings
+    .filter(m => !specOverrides.some(s => s.src === m.src))
+    .map(m => `• \`${m.src}\` → \`${m.tgt}\` *(${m.note})*`),
+].join("\n") || "  (no direct matches found — check field naming)"}
+
+---
+
+### ⚙️ Function Nodes to Create (${functionMappings.length})
+${functionMappings.map(fn =>
+  `**${fn.name}**\n  - Inputs: ${fn.inputs.join(", ")}\n  - Output: \`${fn.output}\`\n  - Expression: \`${fn.expr}\`\n  - Purpose: ${fn.desc}`
+).join("\n\n") || "  (no transformation functions needed)"}
+
+---
+
+### 🔀 Conditional Logic (${conditionMappings.length})
+${conditionMappings.map(c =>
+  `• IF \`${c.condition}\`\n  THEN: ${c.ifTrue}\n  ELSE: ${c.ifFalse}`
+).join("\n\n") || "  (no conditional mappings detected)"}
+
+---
+
+### 🔁 Loop Structures (${loopMappings.length})
+${loopMappings.map(l =>
+  `• Source: **${l.srcGroup}** → Target: **${l.tgtGroup}**\n  ${l.desc}`
+).join("\n\n") || "  (no loop structures detected)"}
+
+---
+
+✅ Type **proceed** below to build this map on the canvas.`;
+
+    setPendingMapBuild({ inputTreeObj, outputTreeObj });
+    setAiMapPlan(planText);
+    setWizardPhase("plan");
+  };
+
+  /* Phase 2: User said proceed → build canvas */
+  const handleBuildMapFromPlan = () => {
+    if (!pendingMapBuild) return;
+    const { inputTreeObj, outputTreeObj } = pendingMapBuild;
+
+    setWizardPhase("building");
     setShowWizard(false);
     setShowCompanion(true);
     setAiIsThinking(true);
+    setAiMessages((prev) => [...prev, { role: "assistant", content: "🔧 Building map canvas from approved plan..." }]);
 
-    const logMessages = [
-      "Analyzing mapping specifications...",
-      "Connecting to Supabase itx_documentation for RAG lookup...",
-      "Reading type tree segments...",
-      "Found input segments: BEG03, DTM02, PO102, PO104...",
-      "Generating translation rules: BEG_03 -> BELNR, DTM_02 -> DATUM...",
-      "Constructing Validation Filter block for custom quantities...",
-      "Drawing connection wires on the workspace canvas...",
-      "Map construction completed successfully!",
+    const getLeafNames = (item: any): string[] => {
+      if (!item || !item.children || item.children.length === 0) return [item?.name || ""].filter(Boolean);
+      return item.children.flatMap(getLeafNames);
+    };
+
+    const parsedInputs: string[] = Array.isArray(inputTreeObj.hierarchy)
+      ? inputTreeObj.hierarchy.flatMap(getLeafNames)
+      : [];
+    const parsedOutputs: string[] = Array.isArray(outputTreeObj.hierarchy)
+      ? outputTreeObj.hierarchy.flatMap(getLeafNames)
+      : [];
+
+    const fieldSimilarity = (a: string, b: string) => {
+      const la = a.toLowerCase().replace(/[_\-\.]/g, "");
+      const lb = b.toLowerCase().replace(/[_\-\.]/g, "");
+      if (la === lb) return 1;
+      if (la.includes(lb) || lb.includes(la)) return 0.85;
+      const semanticPairs: Record<string, string[]> = {
+        "belnr": ["ponum", "ponumber", "ordernum", "beg03"],
+        "datum": ["date", "dtm02", "orderdate", "shipdate"],
+        "menge": ["qty", "quantity", "po102", "quantity1"],
+        "netwr": ["price", "unitprice", "po104", "amount"],
+        "posex": ["lineno", "linenum", "po101", "itemno"],
+        "lifnr": ["vendorid", "supplierid", "n101"],
+        "matnr": ["itemid", "sku", "po103", "partno"],
+        "zterm": ["paymentterms", "termstype", "itt03"],
+      };
+      for (const [key, aliases] of Object.entries(semanticPairs)) {
+        if ((la.includes(key) || aliases.some(a2 => la.includes(a2))) &&
+            (lb.includes(key) || aliases.some(a2 => lb.includes(a2)))) return 0.8;
+      }
+      return 0;
+    };
+
+    // Match direct src→tgt field pairs
+    const directPairs: Array<{ src: string; tgt: string }> = [];
+    const usedSrc = new Set<string>();
+    const usedTgt = new Set<string>();
+
+    // Spec overrides first
+    if (uploadedSpecContent) {
+      uploadedSpecContent.split(/[\n\r]+/).forEach((line) => {
+        const m = line.match(/([a-zA-Z0-9_]+)\s*(?:->|=|:)\s*([a-zA-Z0-9_]+)/);
+        if (m) {
+          const src = parsedInputs.find(f => f.toLowerCase() === m[1].toLowerCase()) || m[1];
+          const tgt = parsedOutputs.find(f => f.toLowerCase() === m[2].toLowerCase()) || m[2];
+          directPairs.push({ src, tgt });
+          usedSrc.add(src);
+          usedTgt.add(tgt);
+        }
+      });
+    }
+
+    // Semantic matching for remaining fields
+    parsedOutputs.forEach((tgt) => {
+      if (usedTgt.has(tgt)) return;
+      let bestSrc = "";
+      let bestScore = 0;
+      parsedInputs.forEach((src) => {
+        if (usedSrc.has(src)) return;
+        const s = fieldSimilarity(src, tgt);
+        if (s > bestScore) { bestScore = s; bestSrc = src; }
+      });
+      if (bestScore > 0.7 && bestSrc) {
+        directPairs.push({ src: bestSrc, tgt });
+        usedSrc.add(bestSrc);
+        usedTgt.add(tgt);
+      }
+    });
+
+    // Detect numeric fields for function node
+    const numericFields = parsedInputs.filter(f => /qty|amount|price|quantity|menge|netwr|weight|count/i.test(f));
+    const dateFields = parsedInputs.filter(f => /date|dtm|datum|time/i.test(f));
+    const nameFields = parsedInputs.filter(f => /name|desc|label|text/i.test(f));
+    const statusFields = parsedInputs.filter(f => /status|type|flag|indicator|code/i.test(f));
+
+    const functionNodes: NodeItem[] = [];
+    const functionConnections: Connection[] = [];
+
+    // Numeric Validator function node
+    if (numericFields.length > 0) {
+      const fnId = "func-validator";
+      const fnInputs = numericFields.slice(0, 3);
+      const fnOutputs = ["Validated_Value", "Is_Positive"];
+      const targetForValidated = parsedOutputs.find(f => !usedTgt.has(f) && /menge|qty|amount/i.test(f));
+      functionNodes.push({
+        id: fnId,
+        name: "Numeric_Validator",
+        type: "function",
+        x: 420,
+        y: 80,
+        inputs: fnInputs,
+        outputs: fnOutputs,
+        color: "#10b981",
+        formulas: {
+          Validated_Value: { expression: `IF(${fnInputs[0]} > 0, ${fnInputs[0]}, 0)`, description: "Zero-guard numeric input" },
+          Is_Positive: { expression: `${fnInputs[0]} > 0`, description: "Boolean validation flag" },
+        },
+      });
+      fnInputs.forEach((inp) => {
+        const srcMatch = parsedInputs.find(f => f === inp);
+        if (srcMatch) functionConnections.push({ fromNode: "src-gen", fromPort: srcMatch, toNode: fnId, toPort: inp });
+      });
+      if (targetForValidated) {
+        functionConnections.push({ fromNode: fnId, fromPort: "Validated_Value", toNode: "dest-gen", toPort: targetForValidated });
+        usedTgt.add(targetForValidated);
+      }
+    }
+
+    // Date Formatter function node
+    if (dateFields.length > 0) {
+      const fnId = "func-date";
+      const tgtDate = parsedOutputs.find(f => !usedTgt.has(f) && /date|datum|time/i.test(f));
+      functionNodes.push({
+        id: fnId,
+        name: "Date_Formatter",
+        type: "function",
+        x: 420,
+        y: 280,
+        inputs: [dateFields[0]],
+        outputs: ["Formatted_Date"],
+        color: "#f59e0b",
+        formulas: {
+          Formatted_Date: { expression: `FORMAT_DATE(${dateFields[0]}, 'YYYYMMDD')`, description: "EDI → ISO 8601 date conversion" },
+        },
+      });
+      functionConnections.push({ fromNode: "src-gen", fromPort: dateFields[0], toNode: fnId, toPort: dateFields[0] });
+      if (tgtDate) {
+        functionConnections.push({ fromNode: fnId, fromPort: "Formatted_Date", toNode: "dest-gen", toPort: tgtDate });
+        usedTgt.add(tgtDate);
+      }
+    }
+
+    // Conditional status node
+    if (statusFields.length > 0) {
+      const fnId = "func-condition";
+      const tgtStatus = parsedOutputs.find(f => !usedTgt.has(f) && /status|type|flag/i.test(f));
+      functionNodes.push({
+        id: fnId,
+        name: "Status_Condition",
+        type: "function",
+        x: 420,
+        y: 480,
+        inputs: [statusFields[0], "Condition"],
+        outputs: ["Status_Out"],
+        color: "#ec4899",
+        formulas: {
+          Status_Out: { expression: `IF(${statusFields[0]} == 'A', 'ACTIVE', 'INACTIVE')`, description: "Maps status code to label" },
+        },
+      });
+      functionConnections.push({ fromNode: "src-gen", fromPort: statusFields[0], toNode: fnId, toPort: statusFields[0] });
+      if (tgtStatus) {
+        functionConnections.push({ fromNode: fnId, fromPort: "Status_Out", toNode: "dest-gen", toPort: tgtStatus });
+        usedTgt.add(tgtStatus);
+      }
+    }
+
+    // Name concat node
+    if (nameFields.length >= 2) {
+      const fnId = "func-concat";
+      const tgtName = parsedOutputs.find(f => !usedTgt.has(f) && /name|desc|label/i.test(f));
+      functionNodes.push({
+        id: fnId,
+        name: "Name_Concat",
+        type: "function",
+        x: 420,
+        y: 680,
+        inputs: nameFields.slice(0, 2),
+        outputs: ["Full_Name"],
+        color: "#818cf8",
+        formulas: {
+          Full_Name: { expression: `CONCAT(${nameFields[0]}, ' ', ${nameFields[1]})`, description: "Full name concatenation" },
+        },
+      });
+      nameFields.slice(0, 2).forEach(f => {
+        functionConnections.push({ fromNode: "src-gen", fromPort: f, toNode: fnId, toPort: f });
+      });
+      if (tgtName) {
+        functionConnections.push({ fromNode: fnId, fromPort: "Full_Name", toNode: "dest-gen", toPort: tgtName });
+        usedTgt.add(tgtName);
+      }
+    }
+
+    const newNodes: NodeItem[] = [
+      {
+        id: "src-gen",
+        name: (inputTypeTree || "Input").replace(".mtt", ""),
+        type: "source",
+        x: 60,
+        y: 80,
+        inputs: [],
+        outputs: parsedInputs,
+        color: "#3b82f6",
+      },
+      ...functionNodes,
+      {
+        id: "dest-gen",
+        name: (outputTypeTree || "Output").replace(".mtt", ""),
+        type: "target",
+        x: Math.max(740, 420 + functionNodes.length * 60),
+        y: 80,
+        inputs: parsedOutputs,
+        outputs: [],
+        color: "#a855f7",
+      },
     ];
 
-    let currentLogIndex = 0;
-    const interval = setInterval(() => {
-      if (currentLogIndex < logMessages.length) {
-        setAiMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: `[RAG Processing] ${logMessages[currentLogIndex]}` },
-        ]);
-        currentLogIndex++;
-      } else {
-        clearInterval(interval);
-        setAiIsThinking(false);
+    const newConnections: Connection[] = [
+      ...directPairs.map(({ src, tgt }) => ({
+        fromNode: "src-gen",
+        fromPort: src,
+        toNode: "dest-gen",
+        toPort: tgt,
+      })),
+      ...functionConnections,
+    ];
 
-        const getLeafNames = (item: any): string[] => {
-          if (!item.children || item.children.length === 0) {
-            return [item.name];
-          }
-          return item.children.flatMap(getLeafNames);
-        };
+    setTimeout(() => {
+      setNodes(newNodes);
+      setConnections(newConnections);
+      setAiIsThinking(false);
+      setWizardPhase("setup");
 
-        const parsedInputs = inputTreeObj.hierarchy.flatMap(getLeafNames);
-        const parsedOutputs = outputTreeObj.hierarchy.flatMap(getLeafNames);
-
-        const newNodes: NodeItem[] = [
-          {
-            id: "src-gen",
-            name: inputTypeTree.replace(".mtt", ""),
-            type: "source",
-            x: 60,
-            y: 80,
-            inputs: [],
-            outputs: parsedInputs,
-            color: "#3b82f6",
-          },
-          {
-            id: "func-gen",
-            name: "Validation_Filter",
-            type: "function",
-            x: 380,
-            y: 200,
-            inputs: ["InputQty", "InputPrice"],
-            outputs: ["IsValidPO", "SanitizedQty", "CurrencyRate"],
-            color: "#10b981",
-            formulas: {
-              IsValidPO: { expression: "VALIDATE(InputQty, 'GT:0')", description: "Ensure positive quantity" },
-              SanitizedQty: { expression: "IF(InputQty > 0, InputQty, 0)", description: "Zero invalid quantities" },
-            },
-          },
-          {
-            id: "dest-gen",
-            name: outputTypeTree.replace(".mtt", ""),
-            type: "target",
-            x: 740,
-            y: 80,
-            inputs: parsedOutputs,
-            outputs: [],
-            color: "#a855f7",
-          },
-        ];
-
-        // Generate connections: Try parsing uploaded spec first
-        let newConnections: Connection[] = [];
-        if (uploadedSpecContent) {
-          newConnections = parseSpecMappings(uploadedSpecContent, "src-gen", "dest-gen");
-        }
-
-        // Fallback connections if spec didn't declare rules or wasn't uploaded
-        if (newConnections.length === 0) {
-          const firstOutput = parsedInputs.find((o: string) => o.includes("PO_Num") || o.includes("03")) || parsedInputs[0];
-          const secondOutput = parsedInputs.find((o: string) => o.includes("Date") || o.includes("02")) || parsedInputs[1];
-          const thirdOutput = parsedInputs.find((o: string) => o.includes("Line") || o.includes("01")) || parsedInputs[2];
-          const qtyField = parsedInputs.find((o: string) => o.includes("Qty") || o.includes("02")) || parsedInputs[3];
-          const priceField = parsedInputs.find((o: string) => o.includes("Price") || o.includes("04")) || parsedInputs[4];
-
-          const firstInput = parsedOutputs.find((i: string) => i.includes("BELNR") || i.includes("03")) || parsedOutputs[0];
-          const secondInput = parsedOutputs.find((i: string) => i.includes("DATUM") || i.includes("02")) || parsedOutputs[1];
-          const thirdInput = parsedOutputs.find((i: string) => i.includes("POSEX") || i.includes("01")) || parsedOutputs[2];
-          const mengeInput = parsedOutputs.find((i: string) => i.includes("MENGE") || i.includes("02")) || parsedOutputs[3];
-          const netwrInput = parsedOutputs.find((i: string) => i.includes("NETWR") || i.includes("04")) || parsedOutputs[4];
-
-          newConnections = [
-            { fromNode: "src-gen", fromPort: firstOutput, toNode: "dest-gen", toPort: firstInput },
-            { fromNode: "src-gen", fromPort: secondOutput, toNode: "dest-gen", toPort: secondInput },
-            { fromNode: "src-gen", fromPort: thirdOutput, toNode: "dest-gen", toPort: thirdInput },
-            { fromNode: "src-gen", fromPort: qtyField, toNode: "func-gen", toPort: "InputQty" },
-            { fromNode: "src-gen", fromPort: priceField, toNode: "func-gen", toPort: "InputPrice" },
-            { fromNode: "func-gen", fromPort: "SanitizedQty", toNode: "dest-gen", toPort: mengeInput },
-            { fromNode: "func-gen", fromPort: "IsValidPO", toNode: "dest-gen", toPort: netwrInput },
-          ];
-        }
-
-        setNodes(newNodes);
-        setConnections(newConnections);
-
-        setAiMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: `I've successfully generated the mapping layout based on your inputs:
-- Specs File: ${specFile} ${uploadedSpecContent ? "(uploaded file parsed)" : ""}
-- Input Tree: ${inputTypeTree} ${uploadedInputTreeFields ? `(${uploadedInputTreeFields.length} segments parsed)` : ""}
-- Output Tree: ${outputTypeTree} ${uploadedOutputTreeFields ? `(${uploadedOutputTreeFields.length} segments parsed)` : ""}
-
-The source segments have been linked dynamically to the target segments using the RAG index schema stored in your Supabase database. You can now edit/save this map or run simulation testing on it!`,
-          },
-        ]);
-      }
-    }, 450);
+      const fnSummary = functionNodes.map(fn => `• **${fn.name}** — ${fn.formulas ? Object.values(fn.formulas)[0]?.description : ""}`).join("\n");
+      setAiMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `✅ **Map built successfully!**\n\n**Stats:**\n• ${directPairs.length} direct field mappings\n• ${functionNodes.length} function nodes created\n• ${newConnections.length} total connections drawn\n\n**Functions created:**\n${fnSummary || "(none needed)"}\n\nYou can drag nodes to reposition, double-click function output ports to edit formulas, and run Simulation to test the map.`,
+        },
+      ]);
+    }, 800);
   };
+
+  const handleGenerateMapFromWizard = handleAnalyzeAndPlan;
 
   /* ═══════════════════════════════════════════════════════════════════════
      COMPANION DRAGGING SYSTEM
@@ -1516,183 +1816,240 @@ The source segments have been linked dynamically to the target segments using th
               backdropFilter: "blur(6px)",
             }}>
               <div style={{
-                width: "440px", background: "#0f0f18", border: "1px solid #222230",
+                width: wizardPhase === "plan" ? "600px" : "440px",
+                background: "#0f0f18", border: "1px solid #222230",
                 borderRadius: "12px", boxShadow: "0 20px 50px rgba(0,0,0,0.6)",
                 padding: "20px", display: "flex", flexDirection: "column", gap: "14px",
+                maxHeight: "90vh", overflow: "hidden",
               }}>
+
+                {/* Header */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <Sliders size={16} color="#fbbf24" />
                     <span style={{ fontSize: "14px", fontWeight: 700, color: "#ececf1" }}>
-                      New ITX Integration Map Wizard
+                      {wizardPhase === "plan" ? "📋 AI Map Building Plan" : "New ITX Integration Map Wizard"}
                     </span>
                   </div>
                   {nodes.length > 0 && (
-                    <button onClick={() => setShowWizard(false)} style={{ background: "transparent", border: "none", color: "#6b7280", cursor: "pointer" }}>
+                    <button onClick={() => { setShowWizard(false); setWizardPhase("setup"); }} style={{ background: "transparent", border: "none", color: "#6b7280", cursor: "pointer" }}>
                       <X size={16} />
                     </button>
                   )}
                 </div>
 
-                <div style={{ fontSize: "11px", color: "#6b7280", lineHeight: 1.4 }}>
-                  Define your mapping configuration. The ITX AI Companion will auto-generate the segments and validation logic using schema definitions.
-                </div>
+                {/* Phase: Setup */}
+                {wizardPhase === "setup" && (<>
+                  <div style={{ fontSize: "11px", color: "#6b7280", lineHeight: 1.4 }}>
+                    Define your mapping configuration. The ITX AI Companion will analyze your spec and trees, then show you a plan before building the map.
+                  </div>
 
-                 {/* Wizard Inputs */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                  <div>
-                    <label style={{ fontSize: "10px", fontWeight: 700, color: "#9ca3af", marginBottom: "4px", display: "block" }}>
-                      MAP SPECIFICATION FILE (.pdf/.xlsx/.txt)
-                    </label>
-                    <div style={{ display: "flex", gap: "6px" }}>
-                      <select
-                        value={specFile}
-                        onChange={(e) => setSpecFile(e.target.value)}
-                        style={{ flex: 1, padding: "8px", background: "#07070a", border: "1px solid #1e1e2e", borderRadius: "6px", color: "#ececf1", fontSize: "11px" }}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    <div>
+                      <label style={{ fontSize: "10px", fontWeight: 700, color: "#9ca3af", marginBottom: "4px", display: "block" }}>
+                        MAP SPECIFICATION FILE (.pdf/.xlsx/.txt)
+                      </label>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <select
+                          value={specFile}
+                          onChange={(e) => setSpecFile(e.target.value)}
+                          style={{ flex: 1, padding: "8px", background: "#07070a", border: "1px solid #1e1e2e", borderRadius: "6px", color: "#ececf1", fontSize: "11px" }}
+                        >
+                          {dbSpecs.length === 0 ? (
+                            <option value="">-- No specifications uploaded yet --</option>
+                          ) : (
+                            dbSpecs.map((s) => (
+                              <option key={s.id} value={s.name}>{s.name}</option>
+                            ))
+                          )}
+                        </select>
+                        <label style={{
+                          padding: "6px 10px", background: "#1c1c28", border: "1px solid #27273a",
+                          borderRadius: "6px", color: "#ececf1", fontSize: "11px", cursor: "pointer",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                        }}>
+                          Upload
+                          <input
+                            type="file"
+                            accept=".pdf,.xlsx,.csv,.txt,.json"
+                            onChange={(e) => handleFileUpload(e, "spec")}
+                            style={{ display: "none" }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: "10px", fontWeight: 700, color: "#3b82f6", marginBottom: "4px", display: "block" }}>
+                        INPUT TYPE TREE — Source Structure (.mtt/.txt/.json)
+                      </label>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <select
+                          value={inputTypeTree}
+                          onChange={(e) => setInputTypeTree(e.target.value)}
+                          style={{ flex: 1, padding: "8px", background: "#07070a", border: "1px solid #1e3a5f", borderRadius: "6px", color: "#ececf1", fontSize: "11px" }}
+                        >
+                          {dbTypeTrees.length === 0 ? (
+                            <option value="">-- No custom Type Trees uploaded --</option>
+                          ) : (
+                            dbTypeTrees.map((t) => (
+                              <option key={t.id} value={t.name}>{t.name}</option>
+                            ))
+                          )}
+                        </select>
+                        <label style={{
+                          padding: "6px 10px", background: "#1c1c28", border: "1px solid #27273a",
+                          borderRadius: "6px", color: "#ececf1", fontSize: "11px", cursor: "pointer",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                        }}>
+                          Upload
+                          <input
+                            type="file"
+                            accept=".mtt,.txt,.json"
+                            onChange={(e) => handleFileUpload(e, "inputTree")}
+                            style={{ display: "none" }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: "10px", fontWeight: 700, color: "#a855f7", marginBottom: "4px", display: "block" }}>
+                        OUTPUT TYPE TREE — Target Structure (.mtt/.txt/.json)
+                      </label>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <select
+                          value={outputTypeTree}
+                          onChange={(e) => setOutputTypeTree(e.target.value)}
+                          style={{ flex: 1, padding: "8px", background: "#07070a", border: "1px solid #3b1f5e", borderRadius: "6px", color: "#ececf1", fontSize: "11px" }}
+                        >
+                          {dbTypeTrees.length === 0 ? (
+                            <option value="">-- No custom Type Trees uploaded --</option>
+                          ) : (
+                            dbTypeTrees.map((t) => (
+                              <option key={t.id} value={t.name}>{t.name}</option>
+                            ))
+                          )}
+                        </select>
+                        <label style={{
+                          padding: "6px 10px", background: "#1c1c28", border: "1px solid #27273a",
+                          borderRadius: "6px", color: "#ececf1", fontSize: "11px", cursor: "pointer",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                        }}>
+                          Upload
+                          <input
+                            type="file"
+                            accept=".mtt,.txt,.json"
+                            onChange={(e) => handleFileUpload(e, "outputTree")}
+                            style={{ display: "none" }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: "10px", fontWeight: 700, color: "#9ca3af", marginBottom: "4px", display: "block" }}>
+                        INPUT TRANSACTION DATA FILE (OPTIONAL)
+                      </label>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <input
+                          value={inputFile}
+                          onChange={(e) => setInputFile(e.target.value)}
+                          placeholder="e.g. partner_po_850.edi"
+                          style={{ flex: 1, padding: "8px", background: "#07070a", border: "1px solid #1e1e2e", borderRadius: "6px", color: "#ececf1", fontSize: "11px", fontFamily: "var(--font-mono)" }}
+                        />
+                        <label style={{
+                          padding: "6px 10px", background: "#1c1c28", border: "1px solid #27273a",
+                          borderRadius: "6px", color: "#ececf1", fontSize: "11px", cursor: "pointer",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                        }}>
+                          Upload
+                          <input
+                            type="file"
+                            accept=".edi,.txt,.json"
+                            onChange={(e) => handleFileUpload(e, "inputData")}
+                            style={{ display: "none" }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                    {nodes.length > 0 && (
+                      <button
+                        onClick={() => setShowWizard(false)}
+                        style={{ flex: 1, padding: "8px", background: "transparent", border: "1px solid #222230", color: "#6b7280", borderRadius: "6px", fontSize: "11px", cursor: "pointer" }}
                       >
-                        {dbSpecs.length === 0 ? (
-                          <option value="">-- No specifications uploaded yet --</option>
-                        ) : (
-                          dbSpecs.map((s) => (
-                            <option key={s.id} value={s.name}>{s.name}</option>
-                          ))
-                        )}
-                      </select>
-                      <label style={{
-                        padding: "6px 10px", background: "#1c1c28", border: "1px solid #27273a",
-                        borderRadius: "6px", color: "#ececf1", fontSize: "11px", cursor: "pointer",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                      }}>
-                        Upload
-                        <input
-                          type="file"
-                          accept=".pdf,.xlsx,.csv,.txt,.json"
-                          onChange={(e) => handleFileUpload(e, "spec")}
-                          style={{ display: "none" }}
-                        />
-                      </label>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: "10px", fontWeight: 700, color: "#9ca3af", marginBottom: "4px", display: "block" }}>
-                      INPUT TYPE TREE (.mtt/.txt/.json)
-                    </label>
-                    <div style={{ display: "flex", gap: "6px" }}>
-                      <select
-                        value={inputTypeTree}
-                        onChange={(e) => setInputTypeTree(e.target.value)}
-                        style={{ flex: 1, padding: "8px", background: "#07070a", border: "1px solid #1e1e2e", borderRadius: "6px", color: "#ececf1", fontSize: "11px" }}
-                      >
-                        {dbTypeTrees.length === 0 ? (
-                          <option value="">-- No custom Type Trees uploaded --</option>
-                        ) : (
-                          dbTypeTrees.map((t) => (
-                            <option key={t.id} value={t.name}>{t.name}</option>
-                          ))
-                        )}
-                      </select>
-                      <label style={{
-                        padding: "6px 10px", background: "#1c1c28", border: "1px solid #27273a",
-                        borderRadius: "6px", color: "#ececf1", fontSize: "11px", cursor: "pointer",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                      }}>
-                        Upload
-                        <input
-                          type="file"
-                          accept=".mtt,.txt,.json"
-                          onChange={(e) => handleFileUpload(e, "inputTree")}
-                          style={{ display: "none" }}
-                        />
-                      </label>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: "10px", fontWeight: 700, color: "#9ca3af", marginBottom: "4px", display: "block" }}>
-                      OUTPUT TYPE TREE (.mtt/.txt/.json)
-                    </label>
-                    <div style={{ display: "flex", gap: "6px" }}>
-                      <select
-                        value={outputTypeTree}
-                        onChange={(e) => setOutputTypeTree(e.target.value)}
-                        style={{ flex: 1, padding: "8px", background: "#07070a", border: "1px solid #1e1e2e", borderRadius: "6px", color: "#ececf1", fontSize: "11px" }}
-                      >
-                        {dbTypeTrees.length === 0 ? (
-                          <option value="">-- No custom Type Trees uploaded --</option>
-                        ) : (
-                          dbTypeTrees.map((t) => (
-                            <option key={t.id} value={t.name}>{t.name}</option>
-                          ))
-                        )}
-                      </select>
-                      <label style={{
-                        padding: "6px 10px", background: "#1c1c28", border: "1px solid #27273a",
-                        borderRadius: "6px", color: "#ececf1", fontSize: "11px", cursor: "pointer",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                      }}>
-                        Upload
-                        <input
-                          type="file"
-                          accept=".mtt,.txt,.json"
-                          onChange={(e) => handleFileUpload(e, "outputTree")}
-                          style={{ display: "none" }}
-                        />
-                      </label>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: "10px", fontWeight: 700, color: "#9ca3af", marginBottom: "4px", display: "block" }}>
-                      INPUT TRANSACTION DATA FILE (OPTIONAL)
-                    </label>
-                    <div style={{ display: "flex", gap: "6px" }}>
-                      <input
-                        value={inputFile}
-                        onChange={(e) => setInputFile(e.target.value)}
-                        placeholder="e.g. partner_po_850.edi"
-                        style={{ flex: 1, padding: "8px", background: "#07070a", border: "1px solid #1e1e2e", borderRadius: "6px", color: "#ececf1", fontSize: "11px", fontFamily: "var(--font-mono)" }}
-                      />
-                      <label style={{
-                        padding: "6px 10px", background: "#1c1c28", border: "1px solid #27273a",
-                        borderRadius: "6px", color: "#ececf1", fontSize: "11px", cursor: "pointer",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                      }}>
-                        Upload
-                        <input
-                          type="file"
-                          accept=".edi,.txt,.json"
-                          onChange={(e) => handleFileUpload(e, "inputData")}
-                          style={{ display: "none" }}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
-                  {nodes.length > 0 && (
+                        Cancel
+                      </button>
+                    )}
                     <button
-                      onClick={() => setShowWizard(false)}
-                      style={{ flex: 1, padding: "8px", background: "transparent", border: "1px solid #222230", color: "#6b7280", borderRadius: "6px", fontSize: "11px", cursor: "pointer" }}
+                      onClick={handleAnalyzeAndPlan}
+                      style={{
+                        flex: 2, padding: "10px", background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                        color: "#fff", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: 700, cursor: "pointer",
+                        boxShadow: "0 4px 12px rgba(99,102,241,0.3)", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                      }}
                     >
-                      Cancel
+                      <Sparkles size={14} />
+                      Analyze &amp; Generate Plan
                     </button>
-                  )}
-                  <button
-                    onClick={handleGenerateMapFromWizard}
-                    style={{
-                      flex: 2, padding: "8px", background: "linear-gradient(135deg, #10b981, #059669)",
-                      color: "#fff", border: "none", borderRadius: "6px", fontSize: "11px", fontWeight: 700, cursor: "pointer",
-                      boxShadow: "0 4px 12px rgba(16,185,129,0.2)",
-                    }}
-                  >
-                    Generate Map via ITX AI Companion
-                  </button>
-                </div>
+                  </div>
+                </>)}
+
+                {/* Phase: Plan Review */}
+                {wizardPhase === "plan" && (<>
+                  <div style={{
+                    flex: 1, overflowY: "auto", background: "#080812", border: "1px solid #1a1a2e",
+                    borderRadius: "8px", padding: "16px", maxHeight: "55vh",
+                    fontSize: "11px", lineHeight: 1.7, color: "#d1d5db",
+                    fontFamily: "var(--font-mono)", whiteSpace: "pre-wrap",
+                  }}>
+                    {aiMapPlan.split("\n").map((line, i) => {
+                      const isH2 = line.startsWith("##");
+                      const isH3 = line.startsWith("###");
+                      const isBullet = line.startsWith("•") || line.startsWith("-");
+                      const isBold = line.startsWith("**") && line.endsWith("**");
+                      const isDivider = line.trim() === "---";
+                      if (isDivider) return <div key={i} style={{ borderTop: "1px solid #1e1e2e", margin: "8px 0" }} />;
+                      if (isH2) return <div key={i} style={{ fontSize: "14px", fontWeight: 700, color: "#ececf1", margin: "4px 0 6px" }}>{line.replace(/^#+\s*/, "")}</div>;
+                      if (isH3) return <div key={i} style={{ fontSize: "11px", fontWeight: 700, color: "#a78bfa", margin: "8px 0 4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>{line.replace(/^#+\s*/, "")}</div>;
+                      if (isBullet) return <div key={i} style={{ color: "#9ca3af", paddingLeft: "8px" }}>{line}</div>;
+                      if (isBold) return <div key={i} style={{ color: "#fbbf24", fontWeight: 700 }}>{line.replace(/\*\*/g, "")}</div>;
+                      return <div key={i} style={{ color: line.includes("`") ? "#10b981" : "#9ca3af" }}>{line}</div>;
+                    })}
+                  </div>
+
+                  <div style={{ fontSize: "11px", color: "#6b7280", textAlign: "center", padding: "4px 0" }}>
+                    Review the plan above. Click <strong style={{ color: "#10b981" }}>Proceed</strong> to build the map on canvas, or <strong style={{ color: "#6b7280" }}>Back</strong> to change settings.
+                  </div>
+
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button
+                      onClick={() => setWizardPhase("setup")}
+                      style={{ flex: 1, padding: "10px", background: "transparent", border: "1px solid #222230", color: "#6b7280", borderRadius: "6px", fontSize: "11px", fontWeight: 600, cursor: "pointer" }}
+                    >
+                      ← Back
+                    </button>
+                    <button
+                      onClick={handleBuildMapFromPlan}
+                      style={{
+                        flex: 2, padding: "10px", background: "linear-gradient(135deg, #10b981, #059669)",
+                        color: "#fff", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: 700, cursor: "pointer",
+                        boxShadow: "0 4px 12px rgba(16,185,129,0.3)", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                      }}
+                    >
+                      <CheckCircle size={14} />
+                      Proceed — Build Map
+                    </button>
+                  </div>
+                </>)}
+
               </div>
             </div>
           )}
+
 
           {/* ════════════════════════════════════════════════════════════
               TYPE SELECTION DIALOG (MTT TREE EXPLORER)

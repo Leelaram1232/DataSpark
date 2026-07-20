@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useProjectStore } from "@/store/projectStore";
 import { useAIStore, aiProviders } from "@/store/aiStore";
 import { MapDesigner } from "./MapDesigner";
+import { MapDesignerShell } from "./map-designer/MapDesignerShell";
 import { RuleEditor } from "./RuleEditor";
 import { FunctionLibrary } from "./FunctionLibrary";
 import { TypeTreeManager } from "./TypeTreeManager";
@@ -394,7 +395,7 @@ export function EDIStudio() {
         <AnimatePresence mode="wait">
           {activeSection === "maps" && (
             <motion.div key="maps" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-              <MapDesigner />
+              <MapDesignerShell />
             </motion.div>
           )}
           {activeSection === "rule-editor" && (

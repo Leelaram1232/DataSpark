@@ -1,0 +1,247 @@
+{
+  "standard": "EDIFACT",
+  "transaction": "ORDERS",
+  "name": "Purchase Order Message",
+  "version": "D10B",
+  "badge": "EDI",
+  "structure": [
+    {
+      "id": "edifact_ORDERS_root",
+      "name": "ORDERS_PurchaseOrder",
+      "type": "root",
+      "children": [
+        {
+          "id": "ORDERS_UNH", "name": "UNH - Message Header", "type": "segment",
+          "children": [
+            { "id": "UNH_0062", "name": "Message Reference Number", "type": "element", "dataType": "AN", "maxLength": 14, "mandatory": true },
+            { "id": "UNH_S009_0065", "name": "Message Type", "type": "element", "dataType": "AN", "mandatory": true, "description": "ORDERS" },
+            { "id": "UNH_S009_0052", "name": "Message Version Number", "type": "element", "dataType": "AN", "mandatory": true, "description": "D" },
+            { "id": "UNH_S009_0054", "name": "Message Release Number", "type": "element", "dataType": "AN", "mandatory": true, "description": "10B" },
+            { "id": "UNH_S009_0051", "name": "Controlling Agency Coded", "type": "element", "dataType": "AN", "mandatory": true, "description": "UN" }
+          ]
+        },
+        {
+          "id": "ORDERS_BGM", "name": "BGM - Beginning of Message", "type": "segment",
+          "children": [
+            { "id": "BGM_C002_1001", "name": "Document Name Code", "type": "element", "dataType": "AN", "mandatory": false, "description": "220=Order, 221=Blanket Order" },
+            { "id": "BGM_C106_1004", "name": "Document Identifier", "type": "element", "dataType": "AN", "maxLength": 35, "mandatory": false, "description": "Purchase Order Number" },
+            { "id": "BGM_1225", "name": "Message Function Code", "type": "element", "dataType": "AN", "mandatory": false, "description": "9=Original, 1=Cancellation, 5=Replace" }
+          ]
+        },
+        {
+          "id": "ORDERS_DTM", "name": "DTM - Date/Time/Period", "type": "segment", "occurrence": "[0..35]",
+          "children": [
+            { "id": "DTM_C507_2005", "name": "Date or Time or Period Function Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true, "description": "137=Document/Message Date, 2=Delivery Date Requested, 64=Earliest Delivery" },
+            { "id": "DTM_C507_2380", "name": "Date or Time or Period Value", "type": "element", "dataType": "AN", "maxLength": 35, "mandatory": false },
+            { "id": "DTM_C507_2379", "name": "Date or Time or Period Format Code", "type": "element", "dataType": "AN", "mandatory": false, "description": "102=CCYYMMDD, 203=CCYYMMDDHHMM" }
+          ]
+        },
+        {
+          "id": "ORDERS_FTX", "name": "FTX - Free Text", "type": "segment", "occurrence": "[0..99]",
+          "children": [
+            { "id": "FTX_4451", "name": "Text Subject Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true, "description": "AAA=General Information, AAI=Terms of Delivery, AAK=Price Conditions" },
+            { "id": "FTX_C108_4440_1", "name": "Free Text Value (Line 1)", "type": "element", "dataType": "AN", "maxLength": 512, "mandatory": false },
+            { "id": "FTX_C108_4440_2", "name": "Free Text Value (Line 2)", "type": "element", "dataType": "AN", "maxLength": 512, "mandatory": false }
+          ]
+        },
+        {
+          "id": "ORDERS_RFF_SG1", "name": "SG1 - Reference Group", "type": "group", "occurrence": "[0..10]",
+          "children": [
+            {
+              "id": "ORDERS_RFF", "name": "RFF - Reference", "type": "segment",
+              "children": [
+                { "id": "RFF_C506_1153", "name": "Reference Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true, "description": "ON=Order Number, CT=Contract Number, ACD=Additional Reference" },
+                { "id": "RFF_C506_1154", "name": "Reference Identifier", "type": "element", "dataType": "AN", "maxLength": 70, "mandatory": false }
+              ]
+            },
+            {
+              "id": "ORDERS_RFF_DTM", "name": "DTM - Date/Time Reference", "type": "segment", "occurrence": "[0..5]",
+              "children": [
+                { "id": "RFF_DTM_2005", "name": "Date Function Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true },
+                { "id": "RFF_DTM_2380", "name": "Date Value", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ORDERS_NAD_SG2", "name": "SG2 - Name and Address Group", "type": "group", "occurrence": "[0..99]",
+          "children": [
+            {
+              "id": "ORDERS_NAD", "name": "NAD - Name and Address", "type": "segment",
+              "children": [
+                { "id": "NAD_3035", "name": "Party Function Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true, "description": "BY=Buyer, SE=Seller, DP=Delivery Party, SU=Supplier, ST=Ship To, IV=Invoicee" },
+                { "id": "NAD_C082_3039", "name": "Party Identifier", "type": "element", "dataType": "AN", "maxLength": 35, "mandatory": false },
+                { "id": "NAD_C082_1131", "name": "Code List Identification Code", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "NAD_C082_3055", "name": "Code List Responsible Agency Code", "type": "element", "dataType": "AN", "mandatory": false, "description": "9=EAN, 92=Assigned by Buyer" },
+                { "id": "NAD_C058_3124", "name": "Name and Address Description", "type": "element", "dataType": "AN", "maxLength": 35, "mandatory": false },
+                { "id": "NAD_C080_3036_1", "name": "Party Name (Line 1)", "type": "element", "dataType": "AN", "maxLength": 35, "mandatory": false },
+                { "id": "NAD_C080_3036_2", "name": "Party Name (Line 2)", "type": "element", "dataType": "AN", "maxLength": 35, "mandatory": false },
+                { "id": "NAD_C059_3042_1", "name": "Street and Number (Line 1)", "type": "element", "dataType": "AN", "maxLength": 35, "mandatory": false },
+                { "id": "NAD_C059_3042_2", "name": "Street and Number (Line 2)", "type": "element", "dataType": "AN", "maxLength": 35, "mandatory": false },
+                { "id": "NAD_3164", "name": "City Name", "type": "element", "dataType": "AN", "maxLength": 35, "mandatory": false },
+                { "id": "NAD_3229", "name": "Country Sub-entity Name Code", "type": "element", "dataType": "AN", "maxLength": 9, "mandatory": false, "description": "State/Province" },
+                { "id": "NAD_3251", "name": "Postal Identification Code", "type": "element", "dataType": "AN", "maxLength": 17, "mandatory": false },
+                { "id": "NAD_3207", "name": "Country Name Code", "type": "element", "dataType": "AN", "maxLength": 3, "mandatory": false }
+              ]
+            },
+            {
+              "id": "ORDERS_NAD_RFF_SG3", "name": "SG3 - NAD Reference Group", "type": "group", "occurrence": "[0..9]",
+              "children": [
+                {
+                  "id": "ORDERS_NAD_RFF", "name": "RFF - Party Reference", "type": "segment",
+                  "children": [
+                    { "id": "NAD_RFF_1153", "name": "Reference Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true },
+                    { "id": "NAD_RFF_1154", "name": "Reference Identifier", "type": "element", "dataType": "AN", "mandatory": false }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "ORDERS_NAD_CTA_SG5", "name": "SG5 - Contact Information", "type": "group", "occurrence": "[0..5]",
+              "children": [
+                {
+                  "id": "ORDERS_CTA", "name": "CTA - Contact Information", "type": "segment",
+                  "children": [
+                    { "id": "CTA_3139", "name": "Contact Function Code", "type": "element", "dataType": "AN", "mandatory": false },
+                    { "id": "CTA_C056_3412", "name": "Department or Employee Name", "type": "element", "dataType": "AN", "mandatory": false }
+                  ]
+                },
+                {
+                  "id": "ORDERS_COM", "name": "COM - Communication Contact", "type": "segment", "occurrence": "[0..5]",
+                  "children": [
+                    { "id": "COM_C076_3148", "name": "Communication Address Identifier", "type": "element", "dataType": "AN", "mandatory": true },
+                    { "id": "COM_C076_3155", "name": "Communication Address Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true, "description": "TE=Telephone, FX=Fax, EM=Email" }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ORDERS_TAX_SG7", "name": "SG7 - Tax Details Group", "type": "group", "occurrence": "[0..5]",
+          "children": [
+            {
+              "id": "ORDERS_TAX", "name": "TAX - Duty/Tax/Fee Details", "type": "segment",
+              "children": [
+                { "id": "TAX_5283", "name": "Duty or Tax or Fee Function Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true },
+                { "id": "TAX_C241_5153", "name": "Duty or Tax or Fee Type Name Code", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "TAX_C243_5278", "name": "Duty or Tax or Fee Rate", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ORDERS_CUX_SG8", "name": "SG8 - Currency Group", "type": "group", "occurrence": "[0..5]",
+          "children": [
+            {
+              "id": "ORDERS_CUX", "name": "CUX - Currencies", "type": "segment",
+              "children": [
+                { "id": "CUX_C504_6347_1", "name": "Currency Usage Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true, "description": "2=Reference Currency" },
+                { "id": "CUX_C504_6345_1", "name": "Currency Identification Code", "type": "element", "dataType": "AN", "mandatory": false, "description": "ISO 4217 (USD, EUR, GBP)" }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ORDERS_TDT_SG10", "name": "SG10 - Transport Details Group", "type": "group", "occurrence": "[0..10]",
+          "children": [
+            {
+              "id": "ORDERS_TDT", "name": "TDT - Transport Information", "type": "segment",
+              "children": [
+                { "id": "TDT_8051", "name": "Transport Stage Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true },
+                { "id": "TDT_C220_8067", "name": "Transport Mode Name Code", "type": "element", "dataType": "AN", "mandatory": false, "description": "1=Maritime, 2=Rail, 3=Road, 4=Air" },
+                { "id": "TDT_C040_3127", "name": "Carrier Identification", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ORDERS_LIN_SG28", "name": "SG28 - Line Item Group", "type": "group", "occurrence": "[0..200000]",
+          "children": [
+            {
+              "id": "ORDERS_LIN", "name": "LIN - Line Item", "type": "segment",
+              "children": [
+                { "id": "LIN_1082", "name": "Line Item Identifier", "type": "element", "dataType": "AN", "maxLength": 6, "mandatory": false, "description": "Line item number" },
+                { "id": "LIN_1229", "name": "Action Code", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "LIN_C212_7140", "name": "Item Identifier", "type": "element", "dataType": "AN", "maxLength": 35, "mandatory": false },
+                { "id": "LIN_C212_7143", "name": "Item Type Identification Code", "type": "element", "dataType": "AN", "mandatory": false, "description": "SRV=GS1, EN=EAN, SA=Supplier Article" }
+              ]
+            },
+            {
+              "id": "ORDERS_LIN_PIA", "name": "PIA - Additional Product Id", "type": "segment", "occurrence": "[0..25]",
+              "children": [
+                { "id": "PIA_4347", "name": "Product Identifier Function Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true, "description": "1=Additional, 5=Product" },
+                { "id": "PIA_C212_7140", "name": "Item Identifier", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "PIA_C212_7143", "name": "Item Type Identification Code", "type": "element", "dataType": "AN", "mandatory": false, "description": "BP=Buyer Part Number, VN=Vendor Part Number" }
+              ]
+            },
+            {
+              "id": "ORDERS_LIN_IMD", "name": "IMD - Item Description", "type": "segment", "occurrence": "[0..99]",
+              "children": [
+                { "id": "IMD_7077", "name": "Description Format Code", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "IMD_C273_7008_1", "name": "Item Description (Line 1)", "type": "element", "dataType": "AN", "maxLength": 256, "mandatory": false },
+                { "id": "IMD_C273_7008_2", "name": "Item Description (Line 2)", "type": "element", "dataType": "AN", "maxLength": 256, "mandatory": false }
+              ]
+            },
+            {
+              "id": "ORDERS_LIN_QTY", "name": "QTY - Quantity", "type": "segment", "occurrence": "[0..10]",
+              "children": [
+                { "id": "QTY_C186_6063", "name": "Quantity Type Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true, "description": "21=Ordered Quantity, 12=Despatch Quantity, 61=Return Quantity" },
+                { "id": "QTY_C186_6060", "name": "Quantity", "type": "element", "dataType": "N", "maxLength": 35, "mandatory": true },
+                { "id": "QTY_C186_6411", "name": "Measurement Unit Code", "type": "element", "dataType": "AN", "mandatory": false, "description": "PCE=Piece, KGM=Kilogram, MTR=Metre" }
+              ]
+            },
+            {
+              "id": "ORDERS_LIN_DTM", "name": "DTM - Line Item Date", "type": "segment", "occurrence": "[0..35]",
+              "children": [
+                { "id": "LIN_DTM_2005", "name": "Date Function Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true },
+                { "id": "LIN_DTM_2380", "name": "Date Value", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "LIN_DTM_2379", "name": "Date Format Code", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            },
+            {
+              "id": "ORDERS_LIN_FTX", "name": "FTX - Line Item Free Text", "type": "segment", "occurrence": "[0..99]",
+              "children": [
+                { "id": "LIN_FTX_4451", "name": "Text Subject Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true },
+                { "id": "LIN_FTX_4440", "name": "Free Text Value", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            },
+            {
+              "id": "ORDERS_LIN_PRI_SG32", "name": "SG32 - Price Details Group", "type": "group", "occurrence": "[0..25]",
+              "children": [
+                {
+                  "id": "ORDERS_LIN_PRI", "name": "PRI - Price Details", "type": "segment",
+                  "children": [
+                    { "id": "PRI_C509_5125", "name": "Price Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true, "description": "AAA=Calculation Net, AAB=Calculation Gross" },
+                    { "id": "PRI_C509_5118", "name": "Price Amount", "type": "element", "dataType": "N", "maxLength": 15, "mandatory": false },
+                    { "id": "PRI_C509_5375", "name": "Price Type Code", "type": "element", "dataType": "AN", "mandatory": false }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ORDERS_UNS", "name": "UNS - Section Control", "type": "segment",
+          "children": [
+            { "id": "UNS_0081", "name": "Section Identification", "type": "element", "dataType": "AN", "mandatory": true, "description": "S=Detail/Summary Separator" }
+          ]
+        },
+        {
+          "id": "ORDERS_CNT", "name": "CNT - Control Total", "type": "segment", "occurrence": "[0..10]",
+          "children": [
+            { "id": "CNT_C270_6069", "name": "Control Total Type Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true, "description": "2=Total number of line items" },
+            { "id": "CNT_C270_6066", "name": "Control Total Value", "type": "element", "dataType": "N", "mandatory": true }
+          ]
+        },
+        {
+          "id": "ORDERS_UNT", "name": "UNT - Message Trailer", "type": "segment",
+          "children": [
+            { "id": "UNT_0074", "name": "Number of Segments in a Message", "type": "element", "dataType": "N", "mandatory": true },
+            { "id": "UNT_0062", "name": "Message Reference Number", "type": "element", "dataType": "AN", "mandatory": true }
+          ]
+        }
+      ]
+    }
+  ]
+}

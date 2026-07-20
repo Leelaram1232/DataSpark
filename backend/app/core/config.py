@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     # ── Database ───────────────────────────────────────────────────────────────
     database_url: str = "postgresql+asyncpg://postgres:password@localhost:5432/dataspark"
 
+    # ── AI Services ────────────────────────────────────────────────────────────
+    groq_api_key: str = Field("", validation_alias="groq_api_key")
+
     # ── Redis ──────────────────────────────────────────────────────────────────
     redis_url: str = "redis://localhost:6379/0"
 

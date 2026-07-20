@@ -9,6 +9,15 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react", "framer-motion"],
   },
+  // Proxy /api/backend/* to local FastAPI server during development
+  async rewrites() {
+    return [
+      {
+        source: "/api/backend/:path*",
+        destination: "http://localhost:8000/:path*",
+      },
+    ];
+  },
 };
 
 export default nextConfig;

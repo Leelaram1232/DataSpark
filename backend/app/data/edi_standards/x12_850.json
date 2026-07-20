@@ -1,0 +1,312 @@
+{
+  "standard": "ANSI_X12",
+  "transaction": "850",
+  "name": "Purchase Order",
+  "version": "004010",
+  "badge": "X12",
+  "structure": [
+    {
+      "id": "x12_850_root",
+      "name": "X12_850_PurchaseOrder",
+      "type": "root",
+      "children": [
+        {
+          "id": "850_ST",
+          "name": "ST - Transaction Set Header",
+          "type": "segment",
+          "children": [
+            { "id": "ST01", "name": "Transaction Set Identifier Code", "type": "element", "dataType": "ID", "minLength": 3, "maxLength": 3, "mandatory": true, "description": "Code uniquely identifying a Transaction Set" },
+            { "id": "ST02", "name": "Transaction Set Control Number", "type": "element", "dataType": "AN", "minLength": 4, "maxLength": 9, "mandatory": true, "description": "Identifying control number that must be unique within the transaction set" }
+          ]
+        },
+        {
+          "id": "850_BEG",
+          "name": "BEG - Beginning Segment for PO",
+          "type": "segment",
+          "children": [
+            { "id": "BEG01", "name": "Transaction Set Purpose Code", "type": "element", "dataType": "ID", "minLength": 2, "maxLength": 2, "mandatory": true, "description": "Code identifying purpose of transaction set (00=Original, 01=Cancel, 05=Replace)" },
+            { "id": "BEG02", "name": "Purchase Order Type Code", "type": "element", "dataType": "ID", "minLength": 2, "maxLength": 2, "mandatory": true, "description": "Code specifying the type of Purchase Order" },
+            { "id": "BEG03", "name": "Purchase Order Number", "type": "element", "dataType": "AN", "minLength": 1, "maxLength": 22, "mandatory": true, "description": "Identifying number for Purchase Order assigned by the orderer/purchaser" },
+            { "id": "BEG05", "name": "Date", "type": "element", "dataType": "DT", "minLength": 8, "maxLength": 8, "mandatory": true, "description": "Date (CCYYMMDD)" },
+            { "id": "BEG06", "name": "Contract Number", "type": "element", "dataType": "AN", "minLength": 1, "maxLength": 30, "mandatory": false, "description": "Contract number" },
+            { "id": "BEG08", "name": "Acknowledgment Type", "type": "element", "dataType": "ID", "minLength": 2, "maxLength": 2, "mandatory": false, "description": "Code specifying the type of acknowledgment" }
+          ]
+        },
+        {
+          "id": "850_CUR",
+          "name": "CUR - Currency",
+          "type": "segment",
+          "occurrence": "[0..1]",
+          "children": [
+            { "id": "CUR01", "name": "Entity Identifier Code", "type": "element", "dataType": "ID", "mandatory": true },
+            { "id": "CUR02", "name": "Currency Code", "type": "element", "dataType": "ID", "minLength": 3, "maxLength": 3, "mandatory": true, "description": "Code (ISO 4217) for currency" }
+          ]
+        },
+        {
+          "id": "850_REF_LOOP",
+          "name": "REF - Reference Identification",
+          "type": "segment",
+          "occurrence": "[0..12]",
+          "children": [
+            { "id": "REF01", "name": "Reference Identification Qualifier", "type": "element", "dataType": "ID", "minLength": 2, "maxLength": 3, "mandatory": true },
+            { "id": "REF02", "name": "Reference Identification", "type": "element", "dataType": "AN", "minLength": 1, "maxLength": 50, "mandatory": false },
+            { "id": "REF03", "name": "Description", "type": "element", "dataType": "AN", "minLength": 1, "maxLength": 80, "mandatory": false }
+          ]
+        },
+        {
+          "id": "850_PER",
+          "name": "PER - Administrative Communications Contact",
+          "type": "segment",
+          "occurrence": "[0..3]",
+          "children": [
+            { "id": "PER01", "name": "Contact Function Code", "type": "element", "dataType": "ID", "mandatory": true },
+            { "id": "PER02", "name": "Name", "type": "element", "dataType": "AN", "minLength": 1, "maxLength": 60, "mandatory": false },
+            { "id": "PER03", "name": "Communication Number Qualifier", "type": "element", "dataType": "ID", "mandatory": false },
+            { "id": "PER04", "name": "Communication Number", "type": "element", "dataType": "AN", "mandatory": false }
+          ]
+        },
+        {
+          "id": "850_TAX",
+          "name": "TAX - Tax Reference",
+          "type": "segment",
+          "occurrence": "[0..1]",
+          "children": [
+            { "id": "TAX01", "name": "Tax Identification Number", "type": "element", "dataType": "AN", "mandatory": false },
+            { "id": "TAX02", "name": "Location Qualifier", "type": "element", "dataType": "ID", "mandatory": false }
+          ]
+        },
+        {
+          "id": "850_FOB",
+          "name": "FOB - F.O.B. Related Instructions",
+          "type": "segment",
+          "occurrence": "[0..1]",
+          "children": [
+            { "id": "FOB01", "name": "Shipment Method of Payment", "type": "element", "dataType": "ID", "mandatory": true, "description": "Code identifying payment terms for transportation charges (CC=Collect, PP=Prepaid)" },
+            { "id": "FOB02", "name": "Location Qualifier", "type": "element", "dataType": "ID", "mandatory": false },
+            { "id": "FOB03", "name": "Description", "type": "element", "dataType": "AN", "mandatory": false }
+          ]
+        },
+        {
+          "id": "850_ITD",
+          "name": "ITD - Terms of Sale/Deferred Terms",
+          "type": "segment",
+          "occurrence": "[0..5]",
+          "children": [
+            { "id": "ITD01", "name": "Terms Type Code", "type": "element", "dataType": "ID", "mandatory": false },
+            { "id": "ITD02", "name": "Terms Basis Date Code", "type": "element", "dataType": "ID", "mandatory": false },
+            { "id": "ITD03", "name": "Terms Discount Percent", "type": "element", "dataType": "R", "mandatory": false },
+            { "id": "ITD05", "name": "Terms Discount Days Due", "type": "element", "dataType": "N0", "mandatory": false },
+            { "id": "ITD07", "name": "Terms Net Days", "type": "element", "dataType": "N0", "mandatory": false },
+            { "id": "ITD12", "name": "Description", "type": "element", "dataType": "AN", "mandatory": false }
+          ]
+        },
+        {
+          "id": "850_DTM",
+          "name": "DTM - Date/Time Reference",
+          "type": "segment",
+          "occurrence": "[0..10]",
+          "children": [
+            { "id": "DTM01", "name": "Date/Time Qualifier", "type": "element", "dataType": "ID", "minLength": 3, "maxLength": 3, "mandatory": true, "description": "Code specifying type of date or time (002=Delivery Requested, 010=Requested Ship)" },
+            { "id": "DTM02", "name": "Date", "type": "element", "dataType": "DT", "minLength": 8, "maxLength": 8, "mandatory": false },
+            { "id": "DTM03", "name": "Time", "type": "element", "dataType": "TM", "mandatory": false }
+          ]
+        },
+        {
+          "id": "850_TD5",
+          "name": "TD5 - Carrier Details (Routing Seq/Transit Time)",
+          "type": "segment",
+          "occurrence": "[0..12]",
+          "children": [
+            { "id": "TD501", "name": "Routing Sequence Code", "type": "element", "dataType": "ID", "mandatory": false },
+            { "id": "TD502", "name": "Identification Code Qualifier", "type": "element", "dataType": "ID", "mandatory": false },
+            { "id": "TD503", "name": "Identification Code", "type": "element", "dataType": "AN", "mandatory": false, "description": "SCAC Code" },
+            { "id": "TD504", "name": "Transportation Method/Type Code", "type": "element", "dataType": "ID", "mandatory": false },
+            { "id": "TD505", "name": "Routing", "type": "element", "dataType": "AN", "mandatory": false }
+          ]
+        },
+        {
+          "id": "850_N9_LOOP",
+          "name": "N9 Loop - Reference Identification",
+          "type": "loop",
+          "occurrence": "[0..1000]",
+          "children": [
+            {
+              "id": "850_N9",
+              "name": "N9 - Reference Identification",
+              "type": "segment",
+              "children": [
+                { "id": "N901", "name": "Reference Identification Qualifier", "type": "element", "dataType": "ID", "mandatory": true },
+                { "id": "N902", "name": "Reference Identification", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "N903", "name": "Free-form Description", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            },
+            {
+              "id": "850_MSG",
+              "name": "MSG - Message Text",
+              "type": "segment",
+              "occurrence": "[0..1000]",
+              "children": [
+                { "id": "MSG01", "name": "Free-Form Message Text", "type": "element", "dataType": "AN", "mandatory": true }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "850_N1_LOOP",
+          "name": "N1 Loop - Party Identification",
+          "type": "loop",
+          "occurrence": "[0..200]",
+          "children": [
+            {
+              "id": "850_N1",
+              "name": "N1 - Name",
+              "type": "segment",
+              "children": [
+                { "id": "N101", "name": "Entity Identifier Code", "type": "element", "dataType": "ID", "minLength": 2, "maxLength": 3, "mandatory": true, "description": "Code identifying organizational entity (ST=Ship To, BT=Bill To, VN=Vendor, SE=Selling Party)" },
+                { "id": "N102", "name": "Name", "type": "element", "dataType": "AN", "minLength": 1, "maxLength": 60, "mandatory": false },
+                { "id": "N103", "name": "Identification Code Qualifier", "type": "element", "dataType": "ID", "mandatory": false, "description": "Code designating ID code type (1=DUNS, 9=DUNS+4, 92=Assigned by Buyer)" },
+                { "id": "N104", "name": "Identification Code", "type": "element", "dataType": "AN", "minLength": 2, "maxLength": 80, "mandatory": false }
+              ]
+            },
+            {
+              "id": "850_N2",
+              "name": "N2 - Additional Name Information",
+              "type": "segment",
+              "occurrence": "[0..2]",
+              "children": [
+                { "id": "N201", "name": "Name", "type": "element", "dataType": "AN", "mandatory": true },
+                { "id": "N202", "name": "Name", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            },
+            {
+              "id": "850_N3",
+              "name": "N3 - Address Information",
+              "type": "segment",
+              "occurrence": "[0..2]",
+              "children": [
+                { "id": "N301", "name": "Address Information", "type": "element", "dataType": "AN", "minLength": 1, "maxLength": 55, "mandatory": true },
+                { "id": "N302", "name": "Address Information", "type": "element", "dataType": "AN", "minLength": 1, "maxLength": 55, "mandatory": false }
+              ]
+            },
+            {
+              "id": "850_N4",
+              "name": "N4 - Geographic Location",
+              "type": "segment",
+              "occurrence": "[0..1]",
+              "children": [
+                { "id": "N401", "name": "City Name", "type": "element", "dataType": "AN", "minLength": 2, "maxLength": 30, "mandatory": false },
+                { "id": "N402", "name": "State or Province Code", "type": "element", "dataType": "ID", "minLength": 2, "maxLength": 2, "mandatory": false },
+                { "id": "N403", "name": "Postal Code", "type": "element", "dataType": "ID", "minLength": 3, "maxLength": 15, "mandatory": false },
+                { "id": "N404", "name": "Country Code", "type": "element", "dataType": "ID", "minLength": 2, "maxLength": 3, "mandatory": false }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "850_PO1_LOOP",
+          "name": "PO1 Loop - Line Item",
+          "type": "loop",
+          "occurrence": "[1..100000]",
+          "children": [
+            {
+              "id": "850_PO1",
+              "name": "PO1 - Baseline Item Data",
+              "type": "segment",
+              "children": [
+                { "id": "PO101", "name": "Assigned Identification", "type": "element", "dataType": "AN", "minLength": 1, "maxLength": 20, "mandatory": false, "description": "Line item number" },
+                { "id": "PO102", "name": "Quantity Ordered", "type": "element", "dataType": "R", "minLength": 1, "maxLength": 15, "mandatory": true },
+                { "id": "PO103", "name": "Unit or Basis for Measurement Code", "type": "element", "dataType": "ID", "minLength": 2, "maxLength": 2, "mandatory": true, "description": "EA=Each, CA=Case, LB=Pound, KG=Kilogram" },
+                { "id": "PO104", "name": "Unit Price", "type": "element", "dataType": "R", "minLength": 1, "maxLength": 17, "mandatory": true },
+                { "id": "PO105", "name": "Basis of Unit Price Code", "type": "element", "dataType": "ID", "mandatory": false },
+                { "id": "PO106", "name": "Product/Service ID Qualifier", "type": "element", "dataType": "ID", "mandatory": false, "description": "UP=UPC, VN=Vendor Part, BP=Buyer Part, SK=SKU" },
+                { "id": "PO107", "name": "Product/Service ID", "type": "element", "dataType": "AN", "minLength": 1, "maxLength": 48, "mandatory": false },
+                { "id": "PO108", "name": "Product/Service ID Qualifier", "type": "element", "dataType": "ID", "mandatory": false },
+                { "id": "PO109", "name": "Product/Service ID", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "PO110", "name": "Product/Service ID Qualifier", "type": "element", "dataType": "ID", "mandatory": false },
+                { "id": "PO111", "name": "Product/Service ID", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            },
+            {
+              "id": "850_PID",
+              "name": "PID - Product/Item Description",
+              "type": "segment",
+              "occurrence": "[0..1000]",
+              "children": [
+                { "id": "PID01", "name": "Item Description Type", "type": "element", "dataType": "ID", "mandatory": true, "description": "F=Free-form, S=Structured (Industry)" },
+                { "id": "PID02", "name": "Product/Process Characteristic Code", "type": "element", "dataType": "ID", "mandatory": false },
+                { "id": "PID05", "name": "Description", "type": "element", "dataType": "AN", "minLength": 1, "maxLength": 80, "mandatory": false }
+              ]
+            },
+            {
+              "id": "850_PO1_REF",
+              "name": "REF - Line Item Reference",
+              "type": "segment",
+              "occurrence": "[0..12]",
+              "children": [
+                { "id": "PO1_REF01", "name": "Reference Identification Qualifier", "type": "element", "dataType": "ID", "mandatory": true },
+                { "id": "PO1_REF02", "name": "Reference Identification", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            },
+            {
+              "id": "850_PO1_DTM",
+              "name": "DTM - Line Item Date",
+              "type": "segment",
+              "occurrence": "[0..10]",
+              "children": [
+                { "id": "PO1_DTM01", "name": "Date/Time Qualifier", "type": "element", "dataType": "ID", "mandatory": true },
+                { "id": "PO1_DTM02", "name": "Date", "type": "element", "dataType": "DT", "mandatory": false }
+              ]
+            },
+            {
+              "id": "850_PO1_SAC_LOOP",
+              "name": "SAC Loop - Service/Allowance/Charge",
+              "type": "loop",
+              "occurrence": "[0..25]",
+              "children": [
+                {
+                  "id": "850_PO1_SAC",
+                  "name": "SAC - Service, Promotion, Allowance, or Charge",
+                  "type": "segment",
+                  "children": [
+                    { "id": "SAC01", "name": "Allowance or Charge Indicator", "type": "element", "dataType": "ID", "mandatory": true, "description": "A=Allowance, C=Charge" },
+                    { "id": "SAC02", "name": "Service/Promotion/Allowance/Charge Code", "type": "element", "dataType": "ID", "mandatory": false },
+                    { "id": "SAC05", "name": "Amount", "type": "element", "dataType": "N2", "mandatory": false },
+                    { "id": "SAC15", "name": "Description", "type": "element", "dataType": "AN", "mandatory": false }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "850_CTT",
+          "name": "CTT - Transaction Totals",
+          "type": "segment",
+          "children": [
+            { "id": "CTT01", "name": "Number of Line Items", "type": "element", "dataType": "N0", "minLength": 1, "maxLength": 6, "mandatory": true },
+            { "id": "CTT02", "name": "Hash Total", "type": "element", "dataType": "R", "mandatory": false }
+          ]
+        },
+        {
+          "id": "850_AMT",
+          "name": "AMT - Monetary Amount",
+          "type": "segment",
+          "occurrence": "[0..1]",
+          "children": [
+            { "id": "AMT01", "name": "Amount Qualifier Code", "type": "element", "dataType": "ID", "mandatory": true, "description": "TT=Total Transaction Amount" },
+            { "id": "AMT02", "name": "Monetary Amount", "type": "element", "dataType": "R", "mandatory": true }
+          ]
+        },
+        {
+          "id": "850_SE",
+          "name": "SE - Transaction Set Trailer",
+          "type": "segment",
+          "children": [
+            { "id": "SE01", "name": "Number of Included Segments", "type": "element", "dataType": "N0", "mandatory": true },
+            { "id": "SE02", "name": "Transaction Set Control Number", "type": "element", "dataType": "AN", "mandatory": true }
+          ]
+        }
+      ]
+    }
+  ]
+}

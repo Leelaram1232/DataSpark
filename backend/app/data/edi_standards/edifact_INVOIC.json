@@ -1,0 +1,236 @@
+{
+  "standard": "EDIFACT",
+  "transaction": "INVOIC",
+  "name": "Invoice Message",
+  "version": "D10B",
+  "badge": "EDI",
+  "structure": [
+    {
+      "id": "edifact_INVOIC_root",
+      "name": "INVOIC_Invoice",
+      "type": "root",
+      "children": [
+        {
+          "id": "INV_UNH", "name": "UNH - Message Header", "type": "segment",
+          "children": [
+            { "id": "INV_UNH_0062", "name": "Message Reference Number", "type": "element", "dataType": "AN", "mandatory": true },
+            { "id": "INV_UNH_S009_0065", "name": "Message Type", "type": "element", "dataType": "AN", "mandatory": true, "description": "INVOIC" },
+            { "id": "INV_UNH_S009_0052", "name": "Message Version Number", "type": "element", "dataType": "AN", "mandatory": true },
+            { "id": "INV_UNH_S009_0054", "name": "Message Release Number", "type": "element", "dataType": "AN", "mandatory": true }
+          ]
+        },
+        {
+          "id": "INV_BGM", "name": "BGM - Beginning of Message", "type": "segment",
+          "children": [
+            { "id": "INV_BGM_C002_1001", "name": "Document Name Code", "type": "element", "dataType": "AN", "mandatory": false, "description": "380=Commercial Invoice, 381=Credit Note, 383=Debit Note" },
+            { "id": "INV_BGM_C106_1004", "name": "Document Identifier", "type": "element", "dataType": "AN", "mandatory": false, "description": "Invoice Number" },
+            { "id": "INV_BGM_1225", "name": "Message Function Code", "type": "element", "dataType": "AN", "mandatory": false }
+          ]
+        },
+        {
+          "id": "INV_DTM", "name": "DTM - Date/Time/Period", "type": "segment", "occurrence": "[0..35]",
+          "children": [
+            { "id": "INV_DTM_2005", "name": "Date Function Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true, "description": "137=Document Date, 35=Delivery Date, 131=Tax Point Date" },
+            { "id": "INV_DTM_2380", "name": "Date Value", "type": "element", "dataType": "AN", "mandatory": false },
+            { "id": "INV_DTM_2379", "name": "Date Format Code", "type": "element", "dataType": "AN", "mandatory": false }
+          ]
+        },
+        {
+          "id": "INV_FTX", "name": "FTX - Free Text", "type": "segment", "occurrence": "[0..99]",
+          "children": [
+            { "id": "INV_FTX_4451", "name": "Text Subject Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true },
+            { "id": "INV_FTX_4440", "name": "Free Text Value", "type": "element", "dataType": "AN", "mandatory": false }
+          ]
+        },
+        {
+          "id": "INV_RFF_SG1", "name": "SG1 - Reference Group", "type": "group", "occurrence": "[0..99]",
+          "children": [
+            {
+              "id": "INV_RFF", "name": "RFF - Reference", "type": "segment",
+              "children": [
+                { "id": "INV_RFF_1153", "name": "Reference Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true, "description": "ON=Order Number, DQ=Delivery Note, IV=Invoice" },
+                { "id": "INV_RFF_1154", "name": "Reference Identifier", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "INV_NAD_SG2", "name": "SG2 - Name and Address Group", "type": "group", "occurrence": "[0..99]",
+          "children": [
+            {
+              "id": "INV_NAD", "name": "NAD - Name and Address", "type": "segment",
+              "children": [
+                { "id": "INV_NAD_3035", "name": "Party Function Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true, "description": "BY=Buyer, SE=Seller, IV=Invoicee, DP=Delivery Party" },
+                { "id": "INV_NAD_C082_3039", "name": "Party Identifier", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "INV_NAD_C080_3036", "name": "Party Name", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "INV_NAD_C059_3042", "name": "Street and Number", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "INV_NAD_3164", "name": "City Name", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "INV_NAD_3229", "name": "Country Sub-entity Code", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "INV_NAD_3251", "name": "Postal Code", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "INV_NAD_3207", "name": "Country Code", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "INV_TAX_SG7", "name": "SG7 - Tax Details Group", "type": "group", "occurrence": "[0..10]",
+          "children": [
+            {
+              "id": "INV_TAX", "name": "TAX - Duty/Tax/Fee Details", "type": "segment",
+              "children": [
+                { "id": "INV_TAX_5283", "name": "Duty/Tax/Fee Function Qualifier", "type": "element", "dataType": "AN", "mandatory": true },
+                { "id": "INV_TAX_C241_5153", "name": "Tax Type Code", "type": "element", "dataType": "AN", "mandatory": false, "description": "VAT=Value Added Tax, GST=Goods and Services Tax" },
+                { "id": "INV_TAX_C243_5278", "name": "Tax Rate", "type": "element", "dataType": "N", "mandatory": false }
+              ]
+            },
+            {
+              "id": "INV_MOA_TAX", "name": "MOA - Tax Monetary Amount", "type": "segment", "occurrence": "[0..2]",
+              "children": [
+                { "id": "INV_TAX_MOA_5025", "name": "Monetary Amount Type Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true },
+                { "id": "INV_TAX_MOA_5004", "name": "Monetary Amount", "type": "element", "dataType": "N", "mandatory": false }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "INV_CUX_SG8", "name": "SG8 - Currency Group", "type": "group", "occurrence": "[0..5]",
+          "children": [
+            {
+              "id": "INV_CUX", "name": "CUX - Currencies", "type": "segment",
+              "children": [
+                { "id": "INV_CUX_6347", "name": "Currency Usage Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true },
+                { "id": "INV_CUX_6345", "name": "Currency Identification Code", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "INV_PAT_SG9", "name": "SG9 - Payment Terms Group", "type": "group", "occurrence": "[0..10]",
+          "children": [
+            {
+              "id": "INV_PAT", "name": "PAT - Payment Terms Basis", "type": "segment",
+              "children": [
+                { "id": "INV_PAT_4279", "name": "Payment Terms Type Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true, "description": "1=Basic, 3=Fixed Date, 22=Deferred" },
+                { "id": "INV_PAT_C112_2475", "name": "Terms Time Relation Code", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "INV_PAT_C112_2009", "name": "Terms Time Period Qualifier", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "INV_PAT_C112_2151", "name": "Number of Periods", "type": "element", "dataType": "N", "mandatory": false }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "INV_LIN_SG26", "name": "SG26 - Line Item Group", "type": "group", "occurrence": "[0..9999999]",
+          "children": [
+            {
+              "id": "INV_LIN", "name": "LIN - Line Item", "type": "segment",
+              "children": [
+                { "id": "INV_LIN_1082", "name": "Line Item Identifier", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "INV_LIN_1229", "name": "Action Code", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "INV_LIN_C212_7140", "name": "Item Identifier", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "INV_LIN_C212_7143", "name": "Item Type Identification Code", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            },
+            {
+              "id": "INV_LIN_QTY", "name": "QTY - Invoiced Quantity", "type": "segment", "occurrence": "[0..10]",
+              "children": [
+                { "id": "INV_QTY_6063", "name": "Quantity Type Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true, "description": "47=Invoiced Quantity" },
+                { "id": "INV_QTY_6060", "name": "Quantity", "type": "element", "dataType": "N", "mandatory": true },
+                { "id": "INV_QTY_6411", "name": "Measurement Unit Code", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            },
+            {
+              "id": "INV_LIN_MOA", "name": "MOA - Line Item Amount", "type": "segment", "occurrence": "[0..10]",
+              "children": [
+                { "id": "INV_LIN_MOA_5025", "name": "Monetary Amount Type Qualifier", "type": "element", "dataType": "AN", "mandatory": true, "description": "203=Line Item Amount, 66=Allowance/Charge Amount" },
+                { "id": "INV_LIN_MOA_5004", "name": "Monetary Amount", "type": "element", "dataType": "N", "mandatory": false }
+              ]
+            },
+            {
+              "id": "INV_LIN_PRI_SG29", "name": "SG29 - Line Price Group", "type": "group", "occurrence": "[0..10]",
+              "children": [
+                {
+                  "id": "INV_LIN_PRI", "name": "PRI - Price Details", "type": "segment",
+                  "children": [
+                    { "id": "INV_PRI_5125", "name": "Price Code Qualifier", "type": "element", "dataType": "AN", "mandatory": true },
+                    { "id": "INV_PRI_5118", "name": "Price Amount", "type": "element", "dataType": "N", "mandatory": false }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "INV_LIN_TAX_SG34", "name": "SG34 - Line Tax Group", "type": "group", "occurrence": "[0..10]",
+              "children": [
+                {
+                  "id": "INV_LIN_TAX", "name": "TAX - Line Item Tax", "type": "segment",
+                  "children": [
+                    { "id": "INV_LIN_TAX_5283", "name": "Duty/Tax/Fee Function Qualifier", "type": "element", "dataType": "AN", "mandatory": true },
+                    { "id": "INV_LIN_TAX_5278", "name": "Tax Rate", "type": "element", "dataType": "N", "mandatory": false }
+                  ]
+                },
+                {
+                  "id": "INV_LIN_TAX_MOA", "name": "MOA - Line Tax Amount", "type": "segment", "occurrence": "[0..2]",
+                  "children": [
+                    { "id": "INV_LIN_TAX_MOA_5025", "name": "Monetary Amount Type Qualifier", "type": "element", "dataType": "AN", "mandatory": true },
+                    { "id": "INV_LIN_TAX_MOA_5004", "name": "Monetary Amount", "type": "element", "dataType": "N", "mandatory": false }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "INV_UNS", "name": "UNS - Section Control", "type": "segment",
+          "children": [
+            { "id": "INV_UNS_0081", "name": "Section Identification", "type": "element", "dataType": "AN", "mandatory": true }
+          ]
+        },
+        {
+          "id": "INV_MOA_SG50", "name": "SG50 - Summary Monetary Amounts", "type": "group", "occurrence": "[0..100]",
+          "children": [
+            {
+              "id": "INV_MOA_SUMMARY", "name": "MOA - Monetary Amount", "type": "segment",
+              "children": [
+                { "id": "INV_MOA_5025", "name": "Monetary Amount Type Qualifier", "type": "element", "dataType": "AN", "mandatory": true, "description": "77=Invoice Amount, 79=Total Line Items Amount, 124=Tax Amount, 176=Message Total Monetary Amount" },
+                { "id": "INV_MOA_5004", "name": "Monetary Amount", "type": "element", "dataType": "N", "mandatory": true },
+                { "id": "INV_MOA_6345", "name": "Currency Identification Code", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "INV_TAX_SG52", "name": "SG52 - Summary Tax Group", "type": "group", "occurrence": "[0..10]",
+          "children": [
+            {
+              "id": "INV_TAX_SUMMARY", "name": "TAX - Summary Tax Details", "type": "segment",
+              "children": [
+                { "id": "INV_TAX_SUM_5283", "name": "Duty/Tax/Fee Function Qualifier", "type": "element", "dataType": "AN", "mandatory": true },
+                { "id": "INV_TAX_SUM_5278", "name": "Tax Rate", "type": "element", "dataType": "N", "mandatory": false }
+              ]
+            },
+            {
+              "id": "INV_TAX_SUM_MOA", "name": "MOA - Tax Summary Amount", "type": "segment", "occurrence": "[0..2]",
+              "children": [
+                { "id": "INV_TAX_SUM_MOA_5025", "name": "Monetary Amount Type Qualifier", "type": "element", "dataType": "AN", "mandatory": true },
+                { "id": "INV_TAX_SUM_MOA_5004", "name": "Monetary Amount", "type": "element", "dataType": "N", "mandatory": false }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "INV_CNT", "name": "CNT - Control Total", "type": "segment", "occurrence": "[0..10]",
+          "children": [
+            { "id": "INV_CNT_6069", "name": "Control Total Type Qualifier", "type": "element", "dataType": "AN", "mandatory": true },
+            { "id": "INV_CNT_6066", "name": "Control Total Value", "type": "element", "dataType": "N", "mandatory": true }
+          ]
+        },
+        {
+          "id": "INV_UNT", "name": "UNT - Message Trailer", "type": "segment",
+          "children": [
+            { "id": "INV_UNT_0074", "name": "Number of Segments", "type": "element", "dataType": "N", "mandatory": true },
+            { "id": "INV_UNT_0062", "name": "Message Reference Number", "type": "element", "dataType": "AN", "mandatory": true }
+          ]
+        }
+      ]
+    }
+  ]
+}

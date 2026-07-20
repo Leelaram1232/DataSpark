@@ -1,0 +1,227 @@
+{
+  "standard": "ANSI_X12",
+  "transaction": "310",
+  "name": "Freight Receipt and Invoice",
+  "version": "004010",
+  "badge": "X12",
+  "structure": [
+    {
+      "id": "x12_310_root",
+      "name": "X12_310_FreightReceipt",
+      "type": "root",
+      "children": [
+        {
+          "id": "310_ST", "name": "ST - Transaction Set Header", "type": "segment",
+          "children": [
+            { "id": "310_ST01", "name": "Transaction Set Identifier Code", "type": "element", "dataType": "ID", "mandatory": true },
+            { "id": "310_ST02", "name": "Transaction Set Control Number", "type": "element", "dataType": "AN", "mandatory": true }
+          ]
+        },
+        {
+          "id": "310_B3", "name": "B3 - Beginning Segment for Carrier's Invoice", "type": "segment",
+          "children": [
+            { "id": "B301", "name": "Shipment Qualifier", "type": "element", "dataType": "ID", "mandatory": false },
+            { "id": "B302", "name": "Invoice Number", "type": "element", "dataType": "AN", "mandatory": true },
+            { "id": "B303", "name": "Shipment Identification Number", "type": "element", "dataType": "AN", "mandatory": false },
+            { "id": "B304", "name": "Shipment Method of Payment", "type": "element", "dataType": "ID", "mandatory": true, "description": "PP=Prepaid, CC=Collect, TP=Third Party" },
+            { "id": "B306", "name": "Date", "type": "element", "dataType": "DT", "mandatory": true, "description": "Invoice date CCYYMMDD" },
+            { "id": "B307", "name": "Net Amount Due", "type": "element", "dataType": "N2", "mandatory": true },
+            { "id": "B309", "name": "Delivery Date", "type": "element", "dataType": "DT", "mandatory": false },
+            { "id": "B311", "name": "Standard Carrier Alpha Code", "type": "element", "dataType": "ID", "mandatory": true },
+            { "id": "B312", "name": "Date", "type": "element", "dataType": "DT", "mandatory": false, "description": "Shipment date" }
+          ]
+        },
+        {
+          "id": "310_B2A", "name": "B2A - Set Purpose", "type": "segment", "occurrence": "[0..1]",
+          "children": [
+            { "id": "B2A01", "name": "Transaction Set Purpose Code", "type": "element", "dataType": "ID", "mandatory": true, "description": "00=Original" }
+          ]
+        },
+        {
+          "id": "310_Y6", "name": "Y6 - Authentication", "type": "segment", "occurrence": "[0..1]",
+          "children": [
+            { "id": "Y601", "name": "Authorization Number", "type": "element", "dataType": "AN", "mandatory": false },
+            { "id": "Y602", "name": "Date", "type": "element", "dataType": "DT", "mandatory": false }
+          ]
+        },
+        {
+          "id": "310_G1", "name": "G1 - Shipment Type", "type": "segment", "occurrence": "[0..1]",
+          "children": [
+            { "id": "G101", "name": "Shipment Type Code", "type": "element", "dataType": "ID", "mandatory": true }
+          ]
+        },
+        {
+          "id": "310_G2", "name": "G2 - Beyond Routing", "type": "segment", "occurrence": "[0..1]",
+          "children": [
+            { "id": "G201", "name": "Special Indicator Code", "type": "element", "dataType": "ID", "mandatory": false }
+          ]
+        },
+        {
+          "id": "310_K1", "name": "K1 - Remarks", "type": "segment", "occurrence": "[0..2]",
+          "children": [
+            { "id": "K101", "name": "Free-Form Message", "type": "element", "dataType": "AN", "mandatory": true },
+            { "id": "K102", "name": "Free-Form Message", "type": "element", "dataType": "AN", "mandatory": false }
+          ]
+        },
+        {
+          "id": "310_N9_LOOP", "name": "N9 Loop - Reference Numbers", "type": "loop", "occurrence": "[0..15]",
+          "children": [
+            {
+              "id": "310_N9", "name": "N9 - Reference Identification", "type": "segment",
+              "children": [
+                { "id": "310_N901", "name": "Reference Identification Qualifier", "type": "element", "dataType": "ID", "mandatory": true, "description": "BM=Bill of Lading, SI=Shipper, BN=Booking Number, CR=Customer Reference" },
+                { "id": "310_N902", "name": "Reference Identification", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "310_N903", "name": "Free-form Description", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "310_R2", "name": "R2 - Route Information", "type": "segment", "occurrence": "[0..13]",
+          "children": [
+            { "id": "R201", "name": "Standard Carrier Alpha Code", "type": "element", "dataType": "ID", "mandatory": true },
+            { "id": "R202", "name": "Routing Sequence Code", "type": "element", "dataType": "ID", "mandatory": true }
+          ]
+        },
+        {
+          "id": "310_N1_LOOP", "name": "N1 Loop - Party Identification", "type": "loop", "occurrence": "[0..10]",
+          "children": [
+            {
+              "id": "310_N1", "name": "N1 - Name", "type": "segment",
+              "children": [
+                { "id": "310_N101", "name": "Entity Identifier Code", "type": "element", "dataType": "ID", "mandatory": true, "description": "SH=Shipper, CN=Consignee, N1=Notify Party, CA=Carrier" },
+                { "id": "310_N102", "name": "Name", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "310_N103", "name": "Identification Code Qualifier", "type": "element", "dataType": "ID", "mandatory": false },
+                { "id": "310_N104", "name": "Identification Code", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            },
+            {
+              "id": "310_N3", "name": "N3 - Address Information", "type": "segment", "occurrence": "[0..2]",
+              "children": [
+                { "id": "310_N301", "name": "Address Information", "type": "element", "dataType": "AN", "mandatory": true },
+                { "id": "310_N302", "name": "Address Information 2", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            },
+            {
+              "id": "310_N4", "name": "N4 - Geographic Location", "type": "segment", "occurrence": "[0..1]",
+              "children": [
+                { "id": "310_N401", "name": "City Name", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "310_N402", "name": "State or Province Code", "type": "element", "dataType": "ID", "mandatory": false },
+                { "id": "310_N403", "name": "Postal Code", "type": "element", "dataType": "ID", "mandatory": false },
+                { "id": "310_N404", "name": "Country Code", "type": "element", "dataType": "ID", "mandatory": false }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "310_R4_LOOP", "name": "R4 Loop - Port Information", "type": "loop", "occurrence": "[0..20]",
+          "children": [
+            {
+              "id": "310_R4", "name": "R4 - Port or Terminal", "type": "segment",
+              "children": [
+                { "id": "R401", "name": "Port or Terminal Function Code", "type": "element", "dataType": "ID", "mandatory": true, "description": "L=Port of Loading, D=Port of Discharge, R=Place of Receipt, E=Place of Delivery" },
+                { "id": "R402", "name": "Location Qualifier", "type": "element", "dataType": "ID", "mandatory": false },
+                { "id": "R403", "name": "Location Identifier", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "R404", "name": "Port Name", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "R405", "name": "Country Code", "type": "element", "dataType": "ID", "mandatory": false }
+              ]
+            },
+            {
+              "id": "310_DTM", "name": "DTM - Date/Time Reference", "type": "segment", "occurrence": "[0..15]",
+              "children": [
+                { "id": "310_DTM01", "name": "Date/Time Qualifier", "type": "element", "dataType": "ID", "mandatory": true },
+                { "id": "310_DTM02", "name": "Date", "type": "element", "dataType": "DT", "mandatory": false }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "310_V1_LOOP", "name": "V1 Loop - Vessel Identification", "type": "loop", "occurrence": "[0..2]",
+          "children": [
+            {
+              "id": "310_V1", "name": "V1 - Vessel Identification", "type": "segment",
+              "children": [
+                { "id": "V101", "name": "Vessel Code", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "V102", "name": "Vessel Name", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "V103", "name": "Country Code", "type": "element", "dataType": "ID", "mandatory": false },
+                { "id": "V105", "name": "Vessel Code Qualifier", "type": "element", "dataType": "ID", "mandatory": false }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "310_LX_LOOP", "name": "LX Loop - Line Items / Assigned Number", "type": "loop", "occurrence": "[0..999]",
+          "children": [
+            {
+              "id": "310_LX", "name": "LX - Assigned Number", "type": "segment",
+              "children": [
+                { "id": "LX01", "name": "Assigned Number", "type": "element", "dataType": "N0", "mandatory": true }
+              ]
+            },
+            {
+              "id": "310_N7_LOOP", "name": "N7 Loop - Equipment Details", "type": "loop", "occurrence": "[0..999]",
+              "children": [
+                {
+                  "id": "310_N7", "name": "N7 - Equipment Details", "type": "segment",
+                  "children": [
+                    { "id": "N701", "name": "Equipment Initial", "type": "element", "dataType": "AN", "mandatory": false },
+                    { "id": "N702", "name": "Equipment Number", "type": "element", "dataType": "AN", "mandatory": true },
+                    { "id": "N703", "name": "Weight", "type": "element", "dataType": "R", "mandatory": false },
+                    { "id": "N704", "name": "Weight Qualifier", "type": "element", "dataType": "ID", "mandatory": false, "description": "G=Gross, N=Net" },
+                    { "id": "N705", "name": "Tare Weight", "type": "element", "dataType": "N0", "mandatory": false },
+                    { "id": "N711", "name": "Equipment Description Code", "type": "element", "dataType": "ID", "mandatory": false, "description": "CN=Container, TL=Trailer" },
+                    { "id": "N712", "name": "Equipment Length", "type": "element", "dataType": "N0", "mandatory": false }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "310_L0", "name": "L0 - Line Item Quantity and Weight", "type": "segment", "occurrence": "[0..10]",
+              "children": [
+                { "id": "L001", "name": "Lading Line Item Number", "type": "element", "dataType": "N0", "mandatory": false },
+                { "id": "L002", "name": "Billed/Rated-as Quantity", "type": "element", "dataType": "R", "mandatory": false },
+                { "id": "L004", "name": "Weight", "type": "element", "dataType": "R", "mandatory": false },
+                { "id": "L005", "name": "Weight Qualifier", "type": "element", "dataType": "ID", "mandatory": false },
+                { "id": "L007", "name": "Lading Quantity", "type": "element", "dataType": "N0", "mandatory": false },
+                { "id": "L008", "name": "Packaging Form Code", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            },
+            {
+              "id": "310_L1", "name": "L1 - Rate and Charges", "type": "segment", "occurrence": "[0..10]",
+              "children": [
+                { "id": "L101", "name": "Lading Line Item Number", "type": "element", "dataType": "N0", "mandatory": false },
+                { "id": "L102", "name": "Freight Rate", "type": "element", "dataType": "R", "mandatory": false },
+                { "id": "L103", "name": "Rate/Value Qualifier", "type": "element", "dataType": "ID", "mandatory": false },
+                { "id": "L104", "name": "Charge", "type": "element", "dataType": "N2", "mandatory": false },
+                { "id": "L108", "name": "Special Charge or Allowance Code", "type": "element", "dataType": "ID", "mandatory": false }
+              ]
+            },
+            {
+              "id": "310_H1", "name": "H1 - Hazardous Material", "type": "segment", "occurrence": "[0..3]",
+              "children": [
+                { "id": "H101", "name": "Hazardous Material Code", "type": "element", "dataType": "AN", "mandatory": true },
+                { "id": "H102", "name": "Hazardous Material Class Code", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "310_L3", "name": "L3 - Total Weight and Charges", "type": "segment",
+          "children": [
+            { "id": "L301", "name": "Weight", "type": "element", "dataType": "R", "mandatory": false, "description": "Total weight" },
+            { "id": "L302", "name": "Weight Qualifier", "type": "element", "dataType": "ID", "mandatory": false },
+            { "id": "L305", "name": "Charge", "type": "element", "dataType": "N2", "mandatory": false, "description": "Total charges" },
+            { "id": "L311", "name": "Lading Quantity", "type": "element", "dataType": "N0", "mandatory": false }
+          ]
+        },
+        {
+          "id": "310_SE", "name": "SE - Transaction Set Trailer", "type": "segment",
+          "children": [
+            { "id": "310_SE01", "name": "Number of Included Segments", "type": "element", "dataType": "N0", "mandatory": true },
+            { "id": "310_SE02", "name": "Transaction Set Control Number", "type": "element", "dataType": "AN", "mandatory": true }
+          ]
+        }
+      ]
+    }
+  ]
+}

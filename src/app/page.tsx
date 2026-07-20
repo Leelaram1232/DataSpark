@@ -74,12 +74,13 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("dataspark_access_token");
-    if (!token) {
-      router.push("/auth/login");
-    } else {
-      setLoading(false);
-    }
+    // const token = localStorage.getItem("dataspark_access_token");
+    // if (!token) {
+    //   router.push("/auth/login");
+    // } else {
+    //   setLoading(false);
+    // }
+    setLoading(false); // Bypass auth
   }, [router]);
 
   if (loading) {

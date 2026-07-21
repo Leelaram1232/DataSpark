@@ -122,6 +122,75 @@ const X12_TREES: Record<string, TreeNodeData[]> = {
       ]
     }
   ],
+  "943": [
+    {
+      id: "x12-943", name: "X12_943_WarehouseStockTransferShipmentAdvice", type: "root", children: [
+        {
+          id: "943-st", name: "ST - Transaction Set Header", type: "segment", children: [
+            { id: "943-ST01", name: "Transaction Set Identifier Code", type: "element", dataType: "ID" },
+            { id: "943-ST02", name: "Transaction Set Control Number", type: "element", dataType: "AN" },
+          ]
+        },
+        {
+          id: "943-w06", name: "W06 - Warehouse Shipment Identification", type: "segment", isMapped: true, children: [
+            { id: "W0601", name: "Reporting Code", type: "element", dataType: "ID", isMapped: true },
+            { id: "W0602", name: "Deposit Control Number", type: "element", dataType: "AN", isMapped: true },
+            { id: "W0603", name: "Shipment Date", type: "element", dataType: "DT", isMapped: true },
+            { id: "W0604", "name": "Shipment Identification Number", type: "element", dataType: "AN", isMapped: true },
+            { id: "W0605", "name": "Purchase Order Number", type: "element", dataType: "AN", isMapped: true },
+          ]
+        },
+        {
+          id: "943-n1-loop", name: "N1 Loop - Party Details", type: "loop", occurrence: "[1..10]", isMapped: true, children: [
+            {
+              id: "943-n1", name: "N1 - Name", type: "segment", isMapped: true, children: [
+                { id: "943-N101", name: "Entity Identifier Code", type: "element", dataType: "ID", isMapped: true },
+                { id: "943-N102", name: "Name", type: "element", dataType: "AN", isMapped: true },
+                { id: "943-N104", name: "Identification Code", type: "element", dataType: "AN", isMapped: true },
+              ]
+            },
+            {
+              id: "943-n3", name: "N3 - Address Information", type: "segment", isMapped: true, children: [
+                { id: "943-N301", name: "Address Information", type: "element", dataType: "AN", isMapped: true },
+              ]
+            },
+            {
+              id: "943-n4", name: "N4 - Geographic Location", type: "segment", isMapped: true, children: [
+                { id: "943-N401", name: "City Name", type: "element", dataType: "AN", isMapped: true },
+                { id: "943-N402", name: "State Code", type: "element", dataType: "ID", isMapped: true },
+                { id: "943-N403", name: "Postal Code", type: "element", dataType: "ID", isMapped: true },
+                { id: "943-N404", name: "Country Code", type: "element", dataType: "ID", isMapped: true },
+              ]
+            },
+          ]
+        },
+        {
+          id: "943-lx-loop", name: "LX Loop - Assigned Line Items", type: "loop", occurrence: "[1..9999]", isMapped: true, children: [
+            {
+              id: "943-lx", name: "LX - Assigned Line Number", type: "segment", isMapped: true, children: [
+                { id: "LX01", name: "Assigned Number", type: "element", dataType: "N0", isMapped: true }
+              ]
+            },
+            {
+              id: "943-w12", name: "W12 - Warehouse Item Detail", type: "segment", isMapped: true, children: [
+                { id: "W1201", name: "Status Code", type: "element", dataType: "ID", isMapped: true },
+                { id: "W1202", name: "Quantity Ordered", type: "element", dataType: "R", isMapped: true },
+                { id: "W1203", name: "Units Shipped", type: "element", dataType: "R", isMapped: true },
+                { id: "W1205", name: "UOM Code", type: "element", dataType: "ID", isMapped: true },
+                { id: "W1208", name: "Product ID", type: "element", dataType: "AN", isMapped: true },
+              ]
+            },
+          ]
+        },
+        {
+          id: "943-ctt", name: "CTT - Transaction Totals", type: "segment", isMapped: true, children: [
+            { id: "943-CTT01", name: "Number of Line Items", type: "element", dataType: "N0", isMapped: true },
+            { id: "943-CTT02", name: "Hash Total", type: "element", dataType: "R" }
+          ]
+        }
+      ]
+    }
+  ],
   "310": [
     {
       id: "x12-310", name: "X12_310_FreightReceipt", type: "root", children: [

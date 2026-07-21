@@ -571,6 +571,41 @@ export function AIAssistantPanel({
         )}
       </div>
 
+      {/* Suggested Questions */}
+      <div style={{ padding: "4px 10px", display: "flex", flexWrap: "wrap", gap: "4px", background: "#06060a" }}>
+        {[
+          "Explain mapping",
+          "Why did AI create this lookup?",
+          "Generate IF condition",
+          "Show missing mappings",
+          "Generate validation",
+          "Generate test data",
+        ].map((q) => (
+          <button
+            key={q}
+            onClick={() => {
+              if (activeTab === "chat") setChatInput(q);
+              else if (activeTab === "spec") setSpecInput(q);
+              else setExplanationInput(q);
+            }}
+            style={{
+              fontSize: "8.5px",
+              color: "#9ca3af",
+              background: "#11111a",
+              border: "1px solid #1f1f2e",
+              borderRadius: "4px",
+              padding: "2px 6px",
+              cursor: "pointer",
+              transition: "all 120ms ease",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#10b981"; e.currentTarget.style.color = "#10b981"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1f1f2e"; e.currentTarget.style.color = "#9ca3af"; }}
+          >
+            {q}
+          </button>
+        ))}
+      </div>
+
       {/* Input Box Footer */}
       <div style={{ padding: "8px 10px", borderTop: "1px solid #141420", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 8px", background: "#0d0d14", border: "1px solid #1a1a25", borderRadius: "8px" }}>

@@ -24,6 +24,7 @@ _FILE_MAP = {
     ("ANSI_X12", "855"): "x12_855.json",
     ("ANSI_X12", "856"): "x12_856.json",
     ("ANSI_X12", "940"): "x12_940.json",
+    ("ANSI_X12", "943"): "x12_943.json",
     ("ANSI_X12", "945"): "x12_945.json",
     ("ANSI_X12", "997"): "x12_997.json",
     # EDIFACT

@@ -1,0 +1,190 @@
+{
+  "standard": "ANSI_X12",
+  "transaction": "943",
+  "name": "Warehouse Stock Transfer Shipment Advice",
+  "version": "004010",
+  "badge": "X12",
+  "structure": [
+    {
+      "id": "x12_943_root",
+      "name": "X12_943_WarehouseStockTransferShipmentAdvice",
+      "type": "root",
+      "children": [
+        {
+          "id": "943_ISA", "name": "ISA - Interchange Control Header", "type": "segment", "mandatory": true,
+          "children": [
+            { "id": "ISA01", "name": "Authorization Information Qualifier", "type": "element", "dataType": "ID", "mandatory": true },
+            { "id": "ISA02", "name": "Authorization Information", "type": "element", "dataType": "AN", "mandatory": true },
+            { "id": "ISA03", "name": "Security Information Qualifier", "type": "element", "dataType": "ID", "mandatory": true },
+            { "id": "ISA04", "name": "Security Information", "type": "element", "dataType": "AN", "mandatory": true },
+            { "id": "ISA05", "name": "Interchange Sender ID Qualifier", "type": "element", "dataType": "ID", "mandatory": true },
+            { "id": "ISA06", "name": "Interchange Sender ID", "type": "element", "dataType": "AN", "mandatory": true },
+            { "id": "ISA07", "name": "Interchange Receiver ID Qualifier", "type": "element", "dataType": "ID", "mandatory": true },
+            { "id": "ISA08", "name": "Interchange Receiver ID", "type": "element", "dataType": "AN", "mandatory": true },
+            { "id": "ISA09", "name": "Interchange Date", "type": "element", "dataType": "DT", "mandatory": true },
+            { "id": "ISA10", "name": "Interchange Time", "type": "element", "dataType": "TM", "mandatory": true },
+            { "id": "ISA11", "name": "Interchange Control Standards Identifier", "type": "element", "dataType": "ID", "mandatory": true },
+            { "id": "ISA12", "name": "Interchange Control Version Number", "type": "element", "dataType": "ID", "mandatory": true },
+            { "id": "ISA13", "name": "Interchange Control Number", "type": "element", "dataType": "N0", "mandatory": true },
+            { "id": "ISA14", "name": "Acknowledgment Requested", "type": "element", "dataType": "ID", "mandatory": true },
+            { "id": "ISA15", "name": "Usage Indicator", "type": "element", "dataType": "ID", "mandatory": true },
+            { "id": "ISA16", "name": "Component Element Separator", "type": "element", "dataType": "AN", "mandatory": true }
+          ]
+        },
+        {
+          "id": "943_GS", "name": "GS - Functional Group Header", "type": "segment", "mandatory": true,
+          "children": [
+            { "id": "GS01", "name": "Functional Identifier Code", "type": "element", "dataType": "ID", "mandatory": true, "description": "OW=Warehouse Stock Transfer Advice" },
+            { "id": "GS02", "name": "Application Sender's Code", "type": "element", "dataType": "AN", "mandatory": true },
+            { "id": "GS03", "name": "Application Receiver's Code", "type": "element", "dataType": "AN", "mandatory": true },
+            { "id": "GS04", "name": "Date", "type": "element", "dataType": "DT", "mandatory": true },
+            { "id": "GS05", "name": "Time", "type": "element", "dataType": "TM", "mandatory": true },
+            { "id": "GS06", "name": "Group Control Number", "type": "element", "dataType": "N0", "mandatory": true },
+            { "id": "GS07", "name": "Responsible Agency Code", "type": "element", "dataType": "ID", "mandatory": true },
+            { "id": "GS08", "name": "Version / Release / Industry Identifier Code", "type": "element", "dataType": "AN", "mandatory": true }
+          ]
+        },
+        {
+          "id": "943_ST", "name": "ST - Transaction Set Header", "type": "segment", "mandatory": true,
+          "children": [
+            { "id": "ST01", "name": "Transaction Set Identifier Code", "type": "element", "dataType": "ID", "mandatory": true, "description": "943=Warehouse Stock Transfer Shipment Advice" },
+            { "id": "ST02", "name": "Transaction Set Control Number", "type": "element", "dataType": "AN", "mandatory": true }
+          ]
+        },
+        {
+          "id": "943_W06", "name": "W06 - Warehouse Shipment Identification", "type": "segment", "mandatory": true,
+          "children": [
+            { "id": "W0601", "name": "Reporting Code", "type": "element", "dataType": "ID", "mandatory": true, "description": "F=Full, P=Partial, N=Cancel" },
+            { "id": "W0602", "name": "Deposit Control Number", "type": "element", "dataType": "AN", "mandatory": true },
+            { "id": "W0603", "name": "Shipment Date", "type": "element", "dataType": "DT", "mandatory": true },
+            { "id": "W0604", "name": "Shipment Identification Number", "type": "element", "dataType": "AN", "mandatory": true },
+            { "id": "W0605", "name": "Purchase Order Number", "type": "element", "dataType": "AN", "mandatory": false },
+            { "id": "W0606", "name": "Link Sequence Number", "type": "element", "dataType": "AN", "mandatory": false }
+          ]
+        },
+        {
+          "id": "943_N1_LOOP", "name": "N1 - Name & Party Details", "type": "loop", "occurrence": "[1..10]", "mandatory": true,
+          "children": [
+            {
+              "id": "943_N1", "name": "N1 - Name", "type": "segment", "mandatory": true,
+              "children": [
+                { "id": "N101", "name": "Entity Identifier Code", "type": "element", "dataType": "ID", "mandatory": true, "description": "WH=Warehouse, DE=Depositor, SF=Ship From, ST=Ship To" },
+                { "id": "N102", "name": "Name", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "N103", "name": "Identification Code Qualifier", "type": "element", "dataType": "ID", "mandatory": false, "description": "91=Assigned by Seller, 92=Assigned by Buyer" },
+                { "id": "N104", "name": "Identification Code", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            },
+            {
+              "id": "943_N2", "name": "N2 - Additional Name Information", "type": "segment", "occurrence": "[0..2]",
+              "children": [
+                { "id": "N201", "name": "Name", "type": "element", "dataType": "AN", "mandatory": true },
+                { "id": "N202", "name": "Name", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            },
+            {
+              "id": "943_N3", "name": "N3 - Address Information", "type": "segment", "occurrence": "[0..2]",
+              "children": [
+                { "id": "N301", "name": "Address Information", "type": "element", "dataType": "AN", "mandatory": true },
+                { "id": "N302", "name": "Address Information", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            },
+            {
+              "id": "943_N4", "name": "N4 - Geographic Information", "type": "segment", "occurrence": "[0..1]",
+              "children": [
+                { "id": "N401", "name": "City Name", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "N402", "name": "State or Province Code", "type": "element", "dataType": "ID", "mandatory": false },
+                { "id": "N403", "name": "Postal Code", "type": "element", "dataType": "ID", "mandatory": false },
+                { "id": "N404", "name": "Country Code", "type": "element", "dataType": "ID", "mandatory": false }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "943_N9", "name": "N9 - Extended Reference Information", "type": "segment", "occurrence": "[0..10]",
+          "children": [
+            { "id": "N901", "name": "Reference Identification Qualifier", "type": "element", "dataType": "ID", "mandatory": true, "description": "BM=Bill of Lading, SE=Seal Number, SI=Shipper's ID" },
+            { "id": "N902", "name": "Reference Identification", "type": "element", "dataType": "AN", "mandatory": true },
+            { "id": "N903", "name": "Free-form Description", "type": "element", "dataType": "AN", "mandatory": false }
+          ]
+        },
+        {
+          "id": "943_G62", "name": "G62 - Date/Time References", "type": "segment", "occurrence": "[0..5]",
+          "children": [
+            { "id": "G6201", "name": "Date Qualifier", "type": "element", "dataType": "ID", "mandatory": false, "description": "11=Shipped Date, 17=Estimated Delivery Date" },
+            { "id": "G6202", "name": "Date", "type": "element", "dataType": "DT", "mandatory": false },
+            { "id": "G6203", "name": "Time Qualifier", "type": "element", "dataType": "ID", "mandatory": false },
+            { "id": "G6204", "name": "Time", "type": "element", "dataType": "TM", "mandatory": false }
+          ]
+        },
+        {
+          "id": "943_LX_LOOP", "name": "LX - Assigned Line Number Loop", "type": "loop", "occurrence": "[1..9999]", "mandatory": true,
+          "children": [
+            {
+              "id": "943_LX", "name": "LX - Assigned Line Number", "type": "segment", "mandatory": true,
+              "children": [
+                { "id": "LX01", "name": "Assigned Number", "type": "element", "dataType": "N0", "mandatory": true }
+              ]
+            },
+            {
+              "id": "943_W12", "name": "W12 - Warehouse Item Detail", "type": "segment", "mandatory": true,
+              "children": [
+                { "id": "W1201", "name": "Shipment Order Status Code", "type": "element", "dataType": "ID", "mandatory": true, "description": "CC=Completely Shipped, PC=Partially Shipped" },
+                { "id": "W1202", "name": "Quantity Ordered", "type": "element", "dataType": "R", "mandatory": true },
+                { "id": "W1203", "name": "Number of Units Shipped", "type": "element", "dataType": "R", "mandatory": true },
+                { "id": "W1204", "name": "Quantity Difference", "type": "element", "dataType": "R", "mandatory": false },
+                { "id": "W1205", "name": "Unit or Basis for Measurement Code", "type": "element", "dataType": "ID", "mandatory": true, "description": "EA=Each, CA=Case, PL=Pallet, LB=Pound" },
+                { "id": "W1206", "name": "UPC Case Code", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "W1207", "name": "Product/Service ID Qualifier", "type": "element", "dataType": "ID", "mandatory": false, "description": "VN=Vendor Item Number, UK=UPC Code, SK=SKU Number" },
+                { "id": "W1208", "name": "Product/Service ID", "type": "element", "dataType": "AN", "mandatory": false },
+                { "id": "W1209", "name": "Warehouse Lot Number", "type": "element", "dataType": "AN", "mandatory": false }
+              ]
+            },
+            {
+              "id": "943_G69", "name": "G69 - Line Item Detail - Description", "type": "segment", "occurrence": "[0..5]",
+              "children": [
+                { "id": "G6901", "name": "Free-form Description", "type": "element", "dataType": "AN", "mandatory": true }
+              ]
+            },
+            {
+              "id": "943_MEA", "name": "MEA - Measurements", "type": "segment", "occurrence": "[0..10]",
+              "children": [
+                { "id": "MEA01", "name": "Measurement Reference Code", "type": "element", "dataType": "ID", "mandatory": true },
+                { "id": "MEA02", "name": "Measurement Qualifier", "type": "element", "dataType": "ID", "mandatory": true },
+                { "id": "MEA03", "name": "Measurement Value", "type": "element", "dataType": "R", "mandatory": true },
+                { "id": "MEA04", "name": "Unit of Measure", "type": "element", "dataType": "ID", "mandatory": false }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "943_CTT", "name": "CTT - Transaction Totals", "type": "segment", "mandatory": true,
+          "children": [
+            { "id": "CTT01", "name": "Number of Line Items", "type": "element", "dataType": "N0", "mandatory": true },
+            { "id": "CTT02", "name": "Hash Total", "type": "element", "dataType": "R", "mandatory": false }
+          ]
+        },
+        {
+          "id": "943_SE", "name": "SE - Transaction Set Trailer", "type": "segment", "mandatory": true,
+          "children": [
+            { "id": "SE01", "name": "Number of Included Segments", "type": "element", "dataType": "N0", "mandatory": true },
+            { "id": "SE02", "name": "Transaction Set Control Number", "type": "element", "dataType": "AN", "mandatory": true }
+          ]
+        },
+        {
+          "id": "943_GE", "name": "GE - Functional Group Trailer", "type": "segment", "mandatory": true,
+          "children": [
+            { "id": "GE01", "name": "Number of Transaction Sets Included", "type": "element", "dataType": "N0", "mandatory": true },
+            { "id": "GE02", "name": "Group Control Number", "type": "element", "dataType": "N0", "mandatory": true }
+          ]
+        },
+        {
+          "id": "943_IEA", "name": "IEA - Interchange Control Trailer", "type": "segment", "mandatory": true,
+          "children": [
+            { "id": "IEA01", "name": "Number of Included Functional Groups", "type": "element", "dataType": "N0", "mandatory": true },
+            { "id": "IEA02", "name": "Interchange Control Number", "type": "element", "dataType": "N0", "mandatory": true }
+          ]
+        }
+      ]
+    }
+  ]
+}

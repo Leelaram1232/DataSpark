@@ -32,7 +32,7 @@ export interface TypeTreeConfig {
 export type SourceFormat = "XML" | "ANSI_X12" | "EDIFACT" | "JSON" | "CSV" | "FIXED_WIDTH" | "SAP_IDOC";
 
 export const X12_TRANSACTION_SETS = [
-  "204", "210", "214", "310", "315", "810", "820", "824", "830", "850", "855", "856", "940", "945", "997",
+  "204", "210", "214", "310", "315", "810", "820", "824", "830", "850", "855", "856", "940", "943", "945", "997",
 ] as const;
 
 export const EDIFACT_MESSAGE_TYPES = [

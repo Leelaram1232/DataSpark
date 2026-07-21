@@ -35,6 +35,7 @@ const STEP_LABELS = [
   "Source Standard",
   "Target Standard",
   "Upload Specification",
+  "Code Lists (Optional)",
   "Review & Build",
 ];
 
@@ -513,8 +514,87 @@ export function MapWizard({
                 </div>
               )}
 
-              {/* Step 4: Review & Pre-Generation Validation */}
+              {/* Step 4: Code Lists Upload (Optional) */}
               {w.step === 4 && (
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                    <label style={labelStyle}>CODE LISTS & LOOKUP TABLES (OPTIONAL)</label>
+                    <span style={{ fontSize: "9px", color: "#10b981", background: "#10b98115", padding: "1px 6px", borderRadius: "4px", border: "1px solid #10b98133" }}>
+                      Optional Step
+                    </span>
+                  </div>
+
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDragOver(false);
+                      const files = Array.from(e.dataTransfer.files);
+                      if (files.length > 0) {
+                        const names = files.map((f) => f.name);
+                        update({ codeListFiles: [...(w.codeListFiles || []), ...files], codeListNames: [...(w.codeListNames || []), ...names] });
+                      }
+                    }}
+                    style={{
+                      padding: "24px 20px",
+                      background: dragOver ? "#a855f708" : "#0d0d14",
+                      border: `2px dashed ${dragOver ? "#a855f7" : (w.codeListNames?.length || 0) > 0 ? "#a855f744" : "#1e1e2e"}`,
+                      borderRadius: "10px",
+                      textAlign: "center",
+                      cursor: "pointer",
+                      transition: "all 200ms ease",
+                    }}
+                    onClick={() => document.getElementById("codelist-upload-input")?.click()}
+                  >
+                    <input
+                      id="codelist-upload-input"
+                      type="file"
+                      multiple
+                      accept=".csv,.json,.xlsx,.txt,.xml"
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        if (files.length > 0) {
+                          const names = files.map((f) => f.name);
+                          update({ codeListFiles: [...(w.codeListFiles || []), ...files], codeListNames: [...(w.codeListNames || []), ...names] });
+                        }
+                      }}
+                    />
+                    <Upload size={24} color="#a855f7" style={{ margin: "0 auto 6px" }} />
+                    <div style={{ fontSize: "12px", color: "#ececf1", fontWeight: 600 }}>
+                      Drop Code List Files Here (CSV, XLSX, JSON, XML, TXT)
+                    </div>
+                    <div style={{ fontSize: "10px", color: "#6b7280", marginTop: "3px" }}>
+                      Upload custom code lists or skip to use enterprise default lookup tables (State_Master, Country_Master, UOM_Master, Status_Master).
+                    </div>
+                  </div>
+
+                  {/* Uploaded Code List Badges */}
+                  {(w.codeListNames?.length || 0) > 0 && (
+                    <div style={{ marginTop: "10px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                      {w.codeListNames?.map((name, i) => (
+                        <div key={i} style={{ fontSize: "9px", color: "#a855f7", background: "#a855f715", border: "1px solid #a855f733", padding: "3px 8px", borderRadius: "4px", fontFamily: "var(--font-mono)", display: "flex", alignItems: "center", gap: "4px" }}>
+                          <span>{name}</span>
+                          <X size={10} style={{ cursor: "pointer" }} onClick={(e) => {
+                            e.stopPropagation();
+                            const newNames = w.codeListNames?.filter((_, idx) => idx !== i);
+                            const newFiles = w.codeListFiles?.filter((_, idx) => idx !== i);
+                            update({ codeListNames: newNames, codeListFiles: newFiles });
+                          }} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div style={{ fontSize: "9px", color: "#4b5563", marginTop: "10px", lineHeight: 1.5 }}>
+                    The AI Engine parses keys, values, and aliases from uploaded code lists and automatically builds searchable LOOKUP tables for field mappings.
+                  </div>
+                </div>
+              )}
+
+              {/* Step 5: Review & Pre-Generation Validation */}
+              {w.step === 5 && (
                 <>
                   <div style={{ background: "#0d0d14", border: "1px solid #1e1e2e", borderRadius: "10px", padding: "14px" }}>
                     <div style={{ fontSize: "12px", fontWeight: 700, color: "#ececf1", marginBottom: "10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -529,7 +609,7 @@ export function MapWizard({
                       { label: "Source Standard", value: `${FORMATS.find((f) => f.value === w.sourceFormat)?.label} ${w.sourceTransactionSet}` },
                       { label: "Target Standard", value: `${FORMATS.find((f) => f.value === w.targetFormat)?.label} ${w.targetTransactionSet}` },
                       { label: "Specification Document", value: w.specFileName || "Invoice_Spec.pdf" },
-                      { label: "Code Lists & Lookup Tables", value: "State_Master, Country_Master, UOM_Master (Indexed)" },
+                      { label: "Code Lists & Lookup Tables", value: (w.codeListNames?.length || 0) > 0 ? w.codeListNames?.join(", ") : "State_Master, Country_Master, UOM_Master (Indexed)" },
                       { label: "Schema Hierarchy", value: "Resolved (0 Unresolved Parent/Child XSD Refs)" },
                     ].map((item) => (
                       <div key={item.label} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid #111118" }}>
@@ -593,7 +673,7 @@ export function MapWizard({
             {w.step === 0 ? "Cancel" : "Back"}
           </button>
 
-          {w.step < 4 ? (
+          {w.step < 5 ? (
             <button
               onClick={() => canNext() && update({ step: w.step + 1 })}
               disabled={!canNext()}

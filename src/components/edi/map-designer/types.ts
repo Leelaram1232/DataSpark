@@ -174,6 +174,8 @@ export interface WizardState {
   targetTransactionSet: string;
   specFile: File | null;
   specFileName: string;
+  codeListFiles?: File[];
+  codeListNames?: string[];
 }
 
 // ── Build Animation Types ────────────────────────────────────────────────
